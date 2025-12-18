@@ -57,3 +57,9 @@ alembic/versions/*.pyc
 *.db
 *.sqlite
 *.sqlite3
+
+# Service Account Keys & Credentials
+serviceAccountKey.json
+**/serviceAccountKey*.json
+credentials.json
+firebase-key*.json

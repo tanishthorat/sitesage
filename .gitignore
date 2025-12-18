@@ -72,6 +72,13 @@ yarn-error.log*
 *.sqlite
 *.sqlite3
 
+# === Service Account Keys & Credentials ===
+serviceAccountKey.json
+**/serviceAccountKey*.json
+credentials.json
+firebase-key*.json
+**/firebase-adminsdk-*.json
+
 # === Docker ===
 *.pid
 
