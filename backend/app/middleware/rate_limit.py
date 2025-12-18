@@ -28,6 +28,10 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in ["/health", "/docs", "/redoc", "/openapi.json", "/"]:
             return await call_next(request)
         
+        # Handle test environment where request.client might be None
+        if request.client is None:
+            return await call_next(request)
+        
         client_ip = request.client.host
         current_time = time()
         

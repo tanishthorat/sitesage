@@ -8,6 +8,7 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.database import Base, get_db
 from app import models
+from app.firebase_auth import get_current_user
 
 # Test database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -30,7 +31,24 @@ def override_get_db():
     finally:
         db.close()
 
+def override_get_current_user():
+    """Mock authenticated user for testing"""
+    db = TestingSessionLocal()
+    # Create or get test user
+    user = db.query(models.User).filter(models.User.email == "test@example.com").first()
+    if not user:
+        user = models.User(
+            email="test@example.com",
+            firebase_uid="test-uid-123",
+            is_active=True
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return user
+
 app.dependency_overrides[get_db] = override_get_db
+app.dependency_overrides[get_current_user] = override_get_current_user
 
 client = TestClient(app)
 

@@ -7,7 +7,8 @@ def test_read_root():
     """Test the root endpoint returns 200"""
     response = client.get("/")
     assert response.status_code == 200
-    assert "message" in response.json()
+    assert "name" in response.json()
+    assert "status" in response.json()
     assert response.json()["status"] == "running"
 
 def test_health_check():
