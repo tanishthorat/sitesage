@@ -25,6 +25,10 @@ jobs:
           pip install pytest httpx
           
       - name: Run Tests
+        env:
+          # We provide dummy keys so the app can start up during testing
+          GOOGLE_API_KEY: "dummy_key_for_ci_testing"
+          DATABASE_URL: "sqlite:///./test.db"
         run: |
           cd backend
           # We will add tests later, for now this passes if code imports correctly
