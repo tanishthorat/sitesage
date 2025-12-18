@@ -1,15 +1,19 @@
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, HTTPException, Request, status, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import func, text
 from contextlib import asynccontextmanager
+from datetime import datetime, timedelta
 import logging
 
 from . import models, schemas, database
 from .services import crawler
 from .services.ai_agent import analyze_with_ai
+from .services.pagespeed import fetch_lighthouse_metrics_safe
+from .firebase_auth import initialize_firebase, get_current_user
 from .config import settings
 from .logger import logger
 from .exceptions import SiteSageException, CrawlerException, AIAnalysisException, DatabaseException
@@ -22,6 +26,14 @@ async def lifespan(app: FastAPI):
     # Startup
     logger.info(f"Starting {settings.PROJECT_NAME} v{settings.VERSION}")
     logger.info(f"Environment: {settings.ENVIRONMENT}")
+    
+    # Initialize Firebase
+    try:
+        initialize_firebase()
+        logger.info("Firebase initialized successfully")
+    except Exception as e:
+        logger.error(f"Failed to initialize Firebase: {e}")
+        # Continue without Firebase if serviceAccountKey.json is missing
     
     # Initialize database tables (for development)
     # In production, use Alembic migrations
@@ -108,8 +120,8 @@ async def root():
 async def health_check(db: Session = Depends(database.get_db)):
     """Health check endpoint with database connectivity check"""
     try:
-        # Test database connection
-        db.execute("SELECT 1")
+        # Test database connection (SQLAlchemy 2.0 requires text())
+        db.execute(text("SELECT 1"))
         db_status = "healthy"
     except Exception as e:
         logger.error(f"Database health check failed: {e}")
@@ -121,6 +133,28 @@ async def health_check(db: Session = Depends(database.get_db)):
         "version": settings.VERSION
     }
 
+# Background task for Lighthouse metrics
+async def fetch_and_update_lighthouse(report_id: int, url: str, db: Session):
+    """Background task to fetch Lighthouse metrics and update report"""
+    try:
+        logger.info(f"Fetching Lighthouse metrics for report {report_id}")
+        metrics = await fetch_lighthouse_metrics_safe(url)
+        
+        # Update report with Lighthouse scores
+        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+        if report:
+            report.lighthouse_performance = metrics.get("performance")
+            report.lighthouse_accessibility = metrics.get("accessibility")
+            report.lighthouse_seo = metrics.get("seo")
+            report.lighthouse_best_practices = metrics.get("best_practices")
+            db.commit()
+            logger.info(f"Lighthouse metrics updated for report {report_id}")
+    except Exception as e:
+        logger.error(f"Failed to update Lighthouse metrics for report {report_id}: {e}")
+        db.rollback()
+    finally:
+        db.close()
+
 # API endpoints
 @app.post(
     f"{settings.API_V1_PREFIX}/analyze",
@@ -130,22 +164,45 @@ async def health_check(db: Session = Depends(database.get_db)):
 )
 async def analyze_url(
     request: schemas.ReportCreate,
+    background_tasks: BackgroundTasks,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(database.get_db)
 ):
     """
-    Analyze a website URL for SEO performance.
+    Analyze a website URL for SEO performance (Protected endpoint - requires authentication).
     
     This endpoint:
+    - Checks for 15-minute cool-down period (same user + URL)
     - Crawls the provided URL
     - Extracts SEO metrics (title, meta tags, headings, images)
     - Calculates an SEO score
     - Generates AI-powered insights and suggestions
+    - Fetches Lighthouse metrics in the background (PageSpeed Insights)
     - Saves the report to the database
     
     Returns:
-        ReportResponse: Complete SEO analysis report
+        ReportResponse: Complete SEO analysis report (Lighthouse metrics populated asynchronously)
     """
-    logger.info(f"Starting analysis for URL: {request.url}")
+    logger.info(f"Starting analysis for URL: {request.url} by user {current_user.email}")
+    
+    # Cool-down check: prevent same user from analyzing same URL within 15 minutes
+    cooldown_time = datetime.utcnow() - timedelta(minutes=15)
+    recent_report = db.query(models.Report).filter(
+        models.Report.user_id == current_user.id,
+        models.Report.url == str(request.url),
+        models.Report.created_at > cooldown_time
+    ).first()
+    
+    if recent_report:
+        logger.warning(f"Cool-down active for {request.url} by user {current_user.email}")
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail={
+                "message": "Please wait before analyzing this URL again",
+                "retry_after_seconds": int((recent_report.created_at - cooldown_time).total_seconds()),
+                "existing_report_id": recent_report.id
+            }
+        )
     
     try:
         # Run async crawler
@@ -176,6 +233,7 @@ async def analyze_url(
         # Save to DB
         db_report = models.Report(
             url=str(request.url),
+            user_id=current_user.id,  # Link to authenticated user
             title=data['title'],
             meta_description=data['meta_description'],
             h1_count=data['h1_count'],
@@ -193,6 +251,15 @@ async def analyze_url(
         db.refresh(db_report)
         
         logger.info(f"Report saved to database with ID: {db_report.id}")
+        
+        # Fetch Lighthouse metrics in background (can take 30-60 seconds)
+        background_tasks.add_task(
+            fetch_and_update_lighthouse,
+            db_report.id,
+            str(request.url),
+            db
+        )
+        
         return db_report
         
     except SQLAlchemyError as e:
@@ -208,31 +275,33 @@ async def analyze_url(
 async def get_reports(
     skip: int = 0,
     limit: int = 100,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(database.get_db)
 ):
     """
-    Retrieve SEO analysis reports with pagination.
+    Retrieve authenticated user's SEO analysis reports with pagination.
     
     Args:
         skip: Number of records to skip (default: 0)
         limit: Maximum number of records to return (default: 100, max: 100)
         
     Returns:
-        List of SEO analysis reports
+        List of SEO analysis reports for the current user
     """
     # Enforce maximum limit
     limit = min(limit, 100)
     
-    logger.info(f"Fetching reports: skip={skip}, limit={limit}")
+    logger.info(f"Fetching reports for user {current_user.email}: skip={skip}, limit={limit}")
     
     try:
         reports = db.query(models.Report)\
+            .filter(models.Report.user_id == current_user.id)\
             .order_by(models.Report.created_at.desc())\
             .offset(skip)\
             .limit(limit)\
             .all()
         
-        logger.info(f"Retrieved {len(reports)} reports")
+        logger.info(f"Retrieved {len(reports)} reports for user {current_user.email}")
         return reports
         
     except SQLAlchemyError as e:
@@ -246,10 +315,11 @@ async def get_reports(
 )
 async def get_report(
     report_id: int,
+    current_user: models.User = Depends(get_current_user),
     db: Session = Depends(database.get_db)
 ):
     """
-    Retrieve a specific SEO analysis report by ID.
+    Retrieve a specific SEO analysis report by ID (user's own reports only).
     
     Args:
         report_id: The ID of the report to retrieve
@@ -257,13 +327,16 @@ async def get_report(
     Returns:
         SEO analysis report
     """
-    logger.info(f"Fetching report with ID: {report_id}")
+    logger.info(f"Fetching report {report_id} for user {current_user.email}")
     
     try:
-        report = db.query(models.Report).filter(models.Report.id == report_id).first()
+        report = db.query(models.Report).filter(
+            models.Report.id == report_id,
+            models.Report.user_id == current_user.id  # Ensure user owns this report
+        ).first()
         
         if not report:
-            logger.warning(f"Report not found: {report_id}")
+            logger.warning(f"Report not found or access denied: {report_id}")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Report with ID {report_id} not found"
@@ -274,6 +347,102 @@ async def get_report(
     except SQLAlchemyError as e:
         logger.error(f"Database error while fetching report {report_id}: {e}")
         raise DatabaseException("Failed to retrieve report")
+
+# History endpoints
+@app.get(
+    f"{settings.API_V1_PREFIX}/history/unique",
+    response_model=list[schemas.HistoryURLResponse],
+    tags=["History"]
+)
+async def get_unique_urls(
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get list of unique URLs analyzed by the current user with metadata.
+    Groups reports by URL and returns the most recent scan info for each.
+    
+    Returns:
+        List of unique URLs with report count and latest scan info
+    """
+    logger.info(f"Fetching unique URLs for user {current_user.email}")
+    
+    try:
+        # Query to group by URL and get latest scan info
+        results = db.query(
+            models.Report.url,
+            func.count(models.Report.id).label('report_count'),
+            func.max(models.Report.created_at).label('latest_scan'),
+            func.max(models.Report.seo_score).label('latest_seo_score')
+        ).filter(
+            models.Report.user_id == current_user.id
+        ).group_by(
+            models.Report.url
+        ).order_by(
+            func.max(models.Report.created_at).desc()
+        ).all()
+        
+        # Convert to response format
+        history = [
+            schemas.HistoryURLResponse(
+                url=row.url,
+                report_count=row.report_count,
+                latest_scan=row.latest_scan,
+                latest_seo_score=row.latest_seo_score
+            )
+            for row in results
+        ]
+        
+        logger.info(f"Found {len(history)} unique URLs for user {current_user.email}")
+        return history
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Database error while fetching history: {e}")
+        raise DatabaseException("Failed to retrieve history")
+
+@app.get(
+    f"{settings.API_V1_PREFIX}/history/{{url:path}}",
+    response_model=list[schemas.ReportResponse],
+    tags=["History"]
+)
+async def get_url_history(
+    url: str,
+    current_user: models.User = Depends(get_current_user),
+    db: Session = Depends(database.get_db)
+):
+    """
+    Get all reports for a specific URL by the current user.
+    Shows the progression of SEO scores over time for that URL.
+    
+    Args:
+        url: The URL to retrieve history for (full URL including protocol)
+        
+    Returns:
+        List of all reports for the specified URL
+    """
+    logger.info(f"Fetching history for URL: {url} by user {current_user.email}")
+    
+    try:
+        reports = db.query(models.Report).filter(
+            models.Report.user_id == current_user.id,
+            models.Report.url == url
+        ).order_by(
+            models.Report.created_at.desc()
+        ).all()
+        
+        if not reports:
+            logger.warning(f"No reports found for URL: {url}")
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No reports found for URL: {url}"
+            )
+        
+        logger.info(f"Found {len(reports)} reports for URL: {url}")
+        return reports
+        
+    except SQLAlchemyError as e:
+        logger.error(f"Database error while fetching URL history: {e}")
+        raise DatabaseException("Failed to retrieve URL history")
 
 
 if __name__ == "__main__":
