@@ -11,6 +11,7 @@ import {
   Input,
   Button,
 } from '@heroui/react';
+import { getAuthErrorMessage } from '@/lib/auth-errors';
 
 interface ForgotPasswordFormData {
   email: string;
@@ -38,8 +39,7 @@ export default function ForgotPasswordPage() {
       await resetPassword(data.email);
       setSuccess(true);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to send reset email';
-      setError(message);
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }

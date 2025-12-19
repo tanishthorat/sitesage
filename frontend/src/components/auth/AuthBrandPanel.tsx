@@ -1,7 +1,8 @@
 import Image from "next/image";
+import React from "react";
 
 interface AuthBrandPanelProps {
-  heading: string;
+  heading: string | React.ReactElement;
   description: string;
 }
 

@@ -9,6 +9,7 @@ import { FaGoogle, FaEye, FaEyeSlash } from "react-icons/fa";
 import { Input, Button, Divider, Checkbox } from "@heroui/react";
 import { IconArrowNarrowRight } from "@tabler/icons-react";
 import AuthBrandPanel from "@/components/auth/AuthBrandPanel";
+import { getAuthErrorMessage } from "@/lib/auth-errors";
 
 interface LoginFormData {
   email: string;
@@ -41,8 +42,7 @@ export default function LoginPage() {
       await signIn(data.email, data.password);
       router.push("/dashboard");
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : "Failed to sign in";
-      setError(message);
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -56,9 +56,7 @@ export default function LoginPage() {
       await signInWithGoogle();
       router.push("/dashboard");
     } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : "Failed to sign in with Google";
-      setError(message);
+      setError(getAuthErrorMessage(err));
     } finally {
       setLoading(false);
     }
