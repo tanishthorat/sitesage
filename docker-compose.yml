@@ -51,9 +51,7 @@ services:
     volumes:
       - ./frontend:/app
       - node_modules:/app/node_modules
-      - nextjs_cache:/app/.next
 
 volumes:
   postgres_data:
   node_modules:
-  nextjs_cache:
