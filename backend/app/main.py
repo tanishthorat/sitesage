@@ -6,14 +6,15 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy import func, text
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Optional
 import logging
 
 from . import models, schemas, database
 from .services import crawler
 from .services.ai_agent import analyze_with_ai
 from .services.pagespeed import fetch_lighthouse_metrics_safe
-from .firebase_auth import initialize_firebase, get_current_user
+from .firebase_auth import initialize_firebase, get_current_user, get_optional_user
 from .config import settings
 from .logger import logger
 from .exceptions import SiteSageException, CrawlerException, AIAnalysisException, DatabaseException
@@ -134,8 +135,10 @@ async def health_check(db: Session = Depends(database.get_db)):
     }
 
 # Background task for Lighthouse metrics
-async def fetch_and_update_lighthouse(report_id: int, url: str, db: Session):
+async def fetch_and_update_lighthouse(report_id: int, url: str):
     """Background task to fetch Lighthouse metrics and update report"""
+    # Create a new database session for this background task
+    db = database.SessionLocal()
     try:
         logger.info(f"Fetching Lighthouse metrics for report {report_id}")
         metrics = await fetch_lighthouse_metrics_safe(url)
@@ -149,6 +152,8 @@ async def fetch_and_update_lighthouse(report_id: int, url: str, db: Session):
             report.lighthouse_best_practices = metrics.get("best_practices")
             db.commit()
             logger.info(f"Lighthouse metrics updated for report {report_id}")
+        else:
+            logger.warning(f"Report {report_id} not found for Lighthouse update")
     except Exception as e:
         logger.error(f"Failed to update Lighthouse metrics for report {report_id}: {e}")
         db.rollback()
@@ -165,44 +170,33 @@ async def fetch_and_update_lighthouse(report_id: int, url: str, db: Session):
 async def analyze_url(
     request: schemas.ReportCreate,
     background_tasks: BackgroundTasks,
-    current_user: models.User = Depends(get_current_user),
+    current_user: Optional[models.User] = Depends(get_optional_user),
     db: Session = Depends(database.get_db)
 ):
     """
-    Analyze a website URL for SEO performance (Protected endpoint - requires authentication).
+    Analyze a website URL for SEO performance (Supports both authenticated users and guests).
+    
+    SNAPSHOT ARCHITECTURE:
+    - Every request creates a NEW report (no cooldown checks)
+    - Each analysis is a distinct snapshot in time
+    - Authenticated users: Reports are linked to their account
+    - Guest users: Reports are saved with NULL user_id
     
     This endpoint:
-    - Checks for 15-minute cool-down period (same user + URL)
+    - Accepts optional authentication (Authorization header)
     - Crawls the provided URL
     - Extracts SEO metrics (title, meta tags, headings, images)
     - Calculates an SEO score
     - Generates AI-powered insights and suggestions
     - Fetches Lighthouse metrics in the background (PageSpeed Insights)
-    - Saves the report to the database
+    - Saves the report to the database (with or without user association)
     
     Returns:
         ReportResponse: Complete SEO analysis report (Lighthouse metrics populated asynchronously)
     """
-    logger.info(f"Starting analysis for URL: {request.url} by user {current_user.email}")
-    
-    # Cool-down check: prevent same user from analyzing same URL within 15 minutes
-    cooldown_time = datetime.utcnow() - timedelta(minutes=15)
-    recent_report = db.query(models.Report).filter(
-        models.Report.user_id == current_user.id,
-        models.Report.url == str(request.url),
-        models.Report.created_at > cooldown_time
-    ).first()
-    
-    if recent_report:
-        logger.warning(f"Cool-down active for {request.url} by user {current_user.email}")
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail={
-                "message": "Please wait before analyzing this URL again",
-                "retry_after_seconds": int((recent_report.created_at - cooldown_time).total_seconds()),
-                "existing_report_id": recent_report.id
-            }
-        )
+    # Log request with user context
+    user_context = current_user.email if current_user else "Guest"
+    logger.info(f"Starting analysis for URL: {request.url} by {user_context}")
     
     try:
         # Run async crawler
@@ -230,10 +224,24 @@ async def analyze_url(
         }
     
     try:
-        # Save to DB
+        # Process AI suggestions - convert objects to strings if needed
+        suggestions = ai_result.get('suggestions', [])
+        processed_suggestions = []
+        for suggestion in suggestions:
+            if isinstance(suggestion, dict):
+                # Convert object format to string
+                title = suggestion.get('title', '')
+                description = suggestion.get('description', '')
+                processed_suggestions.append(f"{title}: {description}" if title else description)
+            else:
+                # Already a string
+                processed_suggestions.append(str(suggestion))
+        
+        # Save to DB (Snapshot Architecture - always create new report)
+        # If authenticated: Link to user account, If guest: Save with NULL user_id
         db_report = models.Report(
             url=str(request.url),
-            user_id=current_user.id,  # Link to authenticated user
+            user_id=current_user.id if current_user else None,  # NULL for guests
             title=data['title'],
             meta_description=data['meta_description'],
             h1_count=data['h1_count'],
@@ -243,7 +251,7 @@ async def analyze_url(
             load_time=data['load_time'],
             seo_score=data['seo_score'],
             ai_summary=ai_result.get('summary', 'AI Analysis Unavailable'),
-            ai_suggestions=ai_result.get('suggestions', [])
+            ai_suggestions=processed_suggestions
         )
         
         db.add(db_report)
@@ -256,8 +264,7 @@ async def analyze_url(
         background_tasks.add_task(
             fetch_and_update_lighthouse,
             db_report.id,
-            str(request.url),
-            db
+            str(request.url)
         )
         
         return db_report
@@ -315,35 +322,65 @@ async def get_reports(
 )
 async def get_report(
     report_id: int,
-    current_user: models.User = Depends(get_current_user),
+    current_user: Optional[models.User] = Depends(get_optional_user),
     db: Session = Depends(database.get_db)
 ):
     """
-    Retrieve a specific SEO analysis report by ID (user's own reports only).
+    Retrieve a specific SEO analysis report by ID (supports guest and authenticated access).
+    
+    ACCESS CONTROL:
+    - Guest reports (user_id = NULL): Accessible by anyone (for polling Lighthouse updates)
+    - User reports (user_id != NULL): Only accessible by the owner
+    
+    This allows guests to poll their reports for Lighthouse metric updates without authentication.
     
     Args:
         report_id: The ID of the report to retrieve
+        current_user: Optional authenticated user (None for guests)
         
     Returns:
         SEO analysis report
     """
-    logger.info(f"Fetching report {report_id} for user {current_user.email}")
+    user_context = current_user.email if current_user else "Guest"
+    logger.info(f"Fetching report {report_id} by {user_context}")
     
     try:
+        # Fetch the report
         report = db.query(models.Report).filter(
-            models.Report.id == report_id,
-            models.Report.user_id == current_user.id  # Ensure user owns this report
+            models.Report.id == report_id
         ).first()
         
         if not report:
-            logger.warning(f"Report not found or access denied: {report_id}")
+            logger.warning(f"Report {report_id} not found")
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Report with ID {report_id} not found"
             )
         
+        # Access Control Logic
+        if report.user_id is not None:
+            # This is a USER-OWNED report - strict authentication required
+            if not current_user:
+                logger.warning(f"Unauthenticated access attempt to user report {report_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Authentication required to access this report"
+                )
+            
+            if current_user.id != report.user_id:
+                logger.warning(f"User {current_user.email} attempted to access report {report_id} owned by user {report.user_id}")
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="You don't have permission to access this report"
+                )
+        
+        # If report.user_id is NULL (Guest Report), allow anyone to access
+        # This enables guests to poll for Lighthouse updates
+        logger.info(f"Report {report_id} access granted to {user_context}")
         return report
         
+    except HTTPException:
+        raise
     except SQLAlchemyError as e:
         logger.error(f"Database error while fetching report {report_id}: {e}")
         raise DatabaseException("Failed to retrieve report")

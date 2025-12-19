@@ -37,8 +37,9 @@ def initialize_firebase():
 # Initialize on module load
 firebase_initialized = initialize_firebase()
 
-# Security scheme for Bearer token
-security = HTTPBearer()
+# Security schemes for Bearer token
+security = HTTPBearer()  # For required authentication (raises 401 if missing)
+optional_security = HTTPBearer(auto_error=False)  # For optional authentication (returns None if missing)
 
 def get_current_user(
     token: HTTPAuthorizationCredentials = Security(security),
@@ -133,17 +134,69 @@ def get_current_user(
         )
 
 def get_optional_user(
-    token: HTTPAuthorizationCredentials = Security(security),
+    credentials: Optional[HTTPAuthorizationCredentials] = Security(optional_security),
     db: Session = Depends(get_db)
 ) -> Optional[models.User]:
     """
-    Optional authentication - returns user if token is valid, None otherwise.
-    Useful for endpoints that work with or without authentication.
+    Optional authentication dependency - returns User if valid token provided, None otherwise.
+    
+    This allows endpoints to work for both authenticated users and guests.
+    - If Authorization header is present and valid: Returns User object
+    - If Authorization header is missing or invalid: Returns None (Guest mode)
+    
+    Args:
+        credentials: Optional Bearer token from Authorization header (auto_error=False)
+        db: Database session
+        
+    Returns:
+        User object if authenticated, None if guest
     """
-    if not token or not firebase_initialized:
+    # No token provided - Guest mode
+    if not credentials:
+        logger.info("Guest user (no authentication token provided)")
         return None
     
+    # Firebase not initialized - Guest mode
+    if not firebase_initialized:
+        logger.warning("Firebase not initialized, treating as guest")
+        return None
+    
+    # Token provided - attempt to verify
     try:
-        return get_current_user(token, db)
-    except HTTPException:
+        decoded_token = auth.verify_id_token(credentials.credentials)
+        firebase_uid = decoded_token['uid']
+        email = decoded_token.get('email')
+        
+        if not email:
+            logger.warning("Email not found in token, treating as guest")
+            return None
+        
+        logger.info(f"Authenticated user: {email} (UID: {firebase_uid})")
+        
+        # Find or create user
+        user = db.query(models.User).filter(
+            models.User.firebase_uid == firebase_uid
+        ).first()
+        
+        if not user:
+            logger.info(f"Auto-registering new user: {email}")
+            user = models.User(
+                email=email,
+                firebase_uid=firebase_uid,
+                is_active=True
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        
+        # Check if user is active
+        if not user.is_active:
+            logger.warning(f"Inactive user attempted access: {email}")
+            return None
+        
+        return user
+        
+    except Exception as e:
+        # Any authentication error - treat as guest
+        logger.warning(f"Authentication failed, treating as guest: {e}")
         return None
