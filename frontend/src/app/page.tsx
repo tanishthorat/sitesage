@@ -4,6 +4,7 @@ import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button, Chip } from "@heroui/react";
+import { IconUser } from '@tabler/icons-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -31,6 +32,7 @@ export default function HomePage() {
               className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
             >
               Sign In
+              <IconUser stroke={2} />
             </Link>
             <Link
               href="/signup"
