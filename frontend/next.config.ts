@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   },
+  images: {
+    unoptimized: true,
+  },
   // Enable file watching in Docker (Windows/Mac)
   webpack: (config) => {
     config.watchOptions = {

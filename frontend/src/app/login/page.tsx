@@ -1,141 +1,212 @@
-'use client';
+"use client";
 
-import { useState, FormEvent } from 'react';
-import { useRouter } from 'next/navigation';
-import { useAuth } from '@/contexts/AuthContext';
-import Link from 'next/link';
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/contexts/AuthContext";
+import Link from "next/link";
+import { useForm } from "react-hook-form";
+import { FaGoogle, FaEye, FaEyeSlash } from "react-icons/fa";
+import { Input, Button, Divider, Checkbox } from "@heroui/react";
+import { IconArrowNarrowRight } from "@tabler/icons-react";
+import AuthBrandPanel from "@/components/auth/AuthBrandPanel";
+
+interface LoginFormData {
+  email: string;
+  password: string;
+  rememberMe: boolean;
+}
 
 export default function LoginPage() {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signIn } = useAuth();
+  const [showPassword, setShowPassword] = useState(false);
+  const { signIn, signInWithGoogle } = useAuth();
   const router = useRouter();
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
-    setError('');
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginFormData>({
+    defaultValues: {
+      rememberMe: false,
+    },
+  });
+
+  const onSubmit = async (data: LoginFormData) => {
+    setError("");
     setLoading(true);
 
     try {
-      await signIn(email, password);
-      router.push('/dashboard');
-    } catch (err: any) {
-      setError(err.message || 'Failed to sign in');
+      await signIn(data.email, data.password);
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to sign in";
+      setError(message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await signInWithGoogle();
+      router.push("/dashboard");
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error ? err.message : "Failed to sign in with Google";
+      setError(message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-8">
-          {/* Logo */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-indigo-600 dark:text-indigo-400">
-              SiteSage
-            </h1>
-            <p className="text-gray-600 dark:text-gray-400 mt-2">
-              Sign in to analyze your website
-            </p>
-          </div>
+    <div className="flex min-h-screen">
+      <AuthBrandPanel
+        heading={<>Welcome back to<br />SiteSage</>}
+        description="Continue analyzing your website and improving your SEO performance."
+      />
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-              <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-            </div>
-          )}
-
-          {/* Login Form */}
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="email"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Email Address
-              </label>
-              <input
-                id="email"
-                type="email"
-                required
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white transition"
-                placeholder="you@example.com"
-              />
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
-              >
-                Password
-              </label>
-              <input
-                id="password"
-                type="password"
-                required
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-700 dark:text-white transition"
-                placeholder="••••••••"
-              />
-            </div>
-
-            <div className="flex items-center justify-between">
-              <div className="flex items-center">
-                <input
-                  id="remember"
-                  type="checkbox"
-                  className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label
-                  htmlFor="remember"
-                  className="ml-2 block text-sm text-gray-700 dark:text-gray-300"
-                >
-                  Remember me
-                </label>
-              </div>
-
-              <Link
-                href="/forgot-password"
-                className="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300"
-              >
-                Forgot password?
-              </Link>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {loading ? 'Signing in...' : 'Sign In'}
-            </button>
-          </form>
-
-          {/* Sign Up Link */}
-          <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
-            Don&apos;t have an account?{' '}
+      {/* Right Side - Form Area */}
+      <div className="flex-1 flex flex-col bg-white dark:bg-neutral-900">
+        {/* Top Right Link */}
+        <div className="flex justify-end p-6">
+          <p className="text-sm text-neutral-600 dark:text-neutral-400">
+            Don&apos;t have an account?{" "}
             <Link
               href="/signup"
-              className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-500 dark:hover:text-indigo-300 font-medium"
+              className="flex text-black dark:text-white font-semibold hover:underline"
             >
-              Sign up
+              <span>Sign up</span> <IconArrowNarrowRight stroke={2} />
             </Link>
           </p>
         </div>
 
-        {/* Demo Credentials */}
-        <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
-          <p className="text-xs text-yellow-800 dark:text-yellow-300 text-center">
-            <strong>Demo:</strong> Create a test account in Firebase Console or use your own credentials
-          </p>
+        {/* Form Container */}
+        <div className="flex-1 flex items-center justify-center px-6 sm:px-12 lg:px-16 pb-12">
+          <div className="w-full max-w-md">
+            <div className="mb-8">
+              <h2 className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">
+                Sign in to your account
+              </h2>
+              <p className="text-neutral-600 dark:text-neutral-400">
+                Access your dashboard and continue your analysis
+              </p>
+            </div>
+
+            {/* Error Message */}
+            {error && (
+              <div className="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {error}
+                </p>
+              </div>
+            )}
+
+            {/* Social Login Buttons */}
+            <div className="space-y-3 mb-6">
+              <Button
+                size="lg"
+                variant="bordered"
+                onPress={handleGoogleSignIn}
+                isLoading={loading}
+                className="w-full justify-center"
+                startContent={!loading && <FaGoogle className="text-xl" />}
+              >
+                Sign in with Google
+              </Button>
+            </div>
+
+            <div className="relative mb-6">
+              <Divider />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="bg-white dark:bg-neutral-900 px-4 text-sm text-neutral-500">
+                  or
+                </span>
+              </div>
+            </div>
+
+            {/* Login Form */}
+            <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+              <div>
+                <Input
+                  {...register("email", {
+                    required: "Email is required",
+                    pattern: {
+                      value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                      message: "Invalid email address",
+                    },
+                  })}
+                  type="email"
+                  label="Email Address"
+                  placeholder="Enter your email"
+                  variant="bordered"
+                  size="lg"
+                  isInvalid={!!errors.email}
+                  errorMessage={errors.email?.message}
+                />
+              </div>
+
+              <div className="relative">
+                <Input
+                  {...register("password", {
+                    required: "Password is required",
+                  })}
+                  type={showPassword ? "text" : "password"}
+                  label="Password"
+                  placeholder="Enter your password"
+                  variant="bordered"
+                  size="lg"
+                  isInvalid={!!errors.password}
+                  errorMessage={errors.password?.message}
+                  endContent={
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="focus:outline-none"
+                    >
+                      {showPassword ? (
+                        <FaEyeSlash className="text-xl text-neutral-400" />
+                      ) : (
+                        <FaEye className="text-xl text-neutral-400" />
+                      )}
+                    </button>
+                  }
+                />
+              </div>
+
+              <div className="flex items-center justify-between">
+                <Checkbox
+                  {...register("rememberMe")}
+                  size="sm"
+                  classNames={{
+                    label: "text-sm text-neutral-600 dark:text-neutral-400",
+                  }}
+                >
+                  Remember me
+                </Checkbox>
+                <Link
+                  href="/forgot-password"
+                  className="text-sm text-black dark:text-white hover:underline"
+                >
+                  Forgot password?
+                </Link>
+              </div>
+
+              <Button
+                type="submit"
+                size="lg"
+                isLoading={loading}
+                className="w-full bg-black dark:bg-white text-white dark:text-black font-semibold"
+              >
+                Sign in
+              </Button>
+            </form>
+          </div>
         </div>
       </div>
     </div>
