@@ -248,6 +248,17 @@ async def analyze_url(
             h2_count=data['h2_count'],
             image_count=data['image_count'],
             missing_alt_count=data['missing_alt_count'],
+            # Pro SEO Metrics
+            word_count=data.get('word_count', 0),
+            internal_links_count=data.get('internal_links_count', 0),
+            external_links_count=data.get('external_links_count', 0),
+            canonical_url=data.get('canonical_url'),
+            og_tags_present=data.get('og_tags_present', False),
+            schema_present=data.get('schema_present', False),
+            robots_txt_exists=data.get('robots_txt_exists', False),
+            sitemap_exists=data.get('sitemap_exists', False),
+            top_keywords=data.get('top_keywords', []),
+            # Performance & AI
             load_time=data['load_time'],
             seo_score=data['seo_score'],
             ai_summary=ai_result.get('summary', 'AI Analysis Unavailable'),
