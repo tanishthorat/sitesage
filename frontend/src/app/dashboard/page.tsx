@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, FormEvent, useEffect, useRef } from 'react';
+import { useState, FormEvent } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import ProtectedRoute from '@/components/ProtectedRoute';
@@ -14,8 +14,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [report, setReport] = useState<Report | null>(null);
-  const [lighthouseLoading, setLighthouseLoading] = useState(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const handleSignOut = async () => {
     try {
@@ -26,89 +24,15 @@ export default function DashboardPage() {
     }
   };
 
-  // Cleanup polling on unmount
-  useEffect(() => {
-    return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
-    };
-  }, []);
-
-  // Check if Lighthouse metrics are loaded
-  const hasLighthouseMetrics = (report: Report | null): boolean => {
-    if (!report) return false;
-    return report.lighthouse_performance !== null ||
-           report.lighthouse_accessibility !== null ||
-           report.lighthouse_seo !== null ||
-           report.lighthouse_best_practices !== null;
-  };
-
-  // Poll for Lighthouse updates
-  const startPollingLighthouse = (reportId: number) => {
-    setLighthouseLoading(true);
-
-    // Clear any existing polling
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    // Poll every 5 seconds for up to 2 minutes (24 attempts)
-    let attempts = 0;
-    const maxAttempts = 24;
-
-    pollingIntervalRef.current = setInterval(async () => {
-      attempts++;
-
-      try {
-        const response = await api.get(`${apiEndpoints.reports}/${reportId}`);
-        const updatedReport = response.data;
-
-        // Check if Lighthouse metrics are now available
-        if (hasLighthouseMetrics(updatedReport)) {
-          setReport(updatedReport);
-          setLighthouseLoading(false);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        } else if (attempts >= maxAttempts) {
-          // Stop polling after max attempts
-          setLighthouseLoading(false);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        }
-      } catch (err) {
-        console.error('Error polling for Lighthouse metrics:', err);
-        // Continue polling even on error
-      }
-    }, 5000); // Poll every 5 seconds
-  };
-
   const handleAnalyze = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
     setReport(null);
     setLoading(true);
-    setLighthouseLoading(false);
-
-    // Clear any existing polling
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-      pollingIntervalRef.current = null;
-    }
 
     try {
       const response = await api.post(apiEndpoints.analyze, { url });
-      const newReport = response.data;
-      setReport(newReport);
-
-      // Start polling for Lighthouse metrics if they're not already loaded
-      if (!hasLighthouseMetrics(newReport)) {
-        startPollingLighthouse(newReport.id);
-      }
+      setReport(response.data);
     } catch (err: any) {
       const apiError = err.response?.data as ApiError;
       if (err.response?.status === 429) {
@@ -285,90 +209,58 @@ export default function DashboardPage() {
               )}
 
               {/* Lighthouse Metrics */}
-              <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                    Lighthouse Metrics (Google PageSpeed)
+              {(report.lighthouse_performance !== null ||
+                report.lighthouse_accessibility !== null ||
+                report.lighthouse_seo !== null ||
+                report.lighthouse_best_practices !== null) && (
+                <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                    Lighthouse Metrics
                   </h3>
-                  {lighthouseLoading && (
-                    <div className="flex items-center text-sm text-indigo-600 dark:text-indigo-400">
-                      <svg className="animate-spin h-4 w-4 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                      </svg>
-                      Loading...
-                    </div>
-                  )}
-                </div>
-
-                {hasLighthouseMetrics(report) ? (
                   <div className="grid md:grid-cols-4 gap-4">
                     {report.lighthouse_performance !== null && (
-                      <div className="text-center p-4 bg-gradient-to-br from-green-50 to-green-100 dark:from-green-900/20 dark:to-green-800/20 rounded-lg">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Performance</p>
-                        <p className={`text-4xl font-bold ${
-                          report.lighthouse_performance >= 90 ? 'text-green-600 dark:text-green-400' :
-                          report.lighthouse_performance >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Performance</p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">
                           {Math.round(report.lighthouse_performance)}
                         </p>
                       </div>
                     )}
                     {report.lighthouse_accessibility !== null && (
-                      <div className="text-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-lg">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Accessibility</p>
-                        <p className={`text-4xl font-bold ${
-                          report.lighthouse_accessibility >= 90 ? 'text-green-600 dark:text-green-400' :
-                          report.lighthouse_accessibility >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Accessibility</p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">
                           {Math.round(report.lighthouse_accessibility)}
                         </p>
                       </div>
                     )}
                     {report.lighthouse_seo !== null && (
-                      <div className="text-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-900/20 dark:to-purple-800/20 rounded-lg">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">SEO</p>
-                        <p className={`text-4xl font-bold ${
-                          report.lighthouse_seo >= 90 ? 'text-green-600 dark:text-green-400' :
-                          report.lighthouse_seo >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">SEO</p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">
                           {Math.round(report.lighthouse_seo)}
                         </p>
                       </div>
                     )}
                     {report.lighthouse_best_practices !== null && (
-                      <div className="text-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-900/20 dark:to-orange-800/20 rounded-lg">
-                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Best Practices</p>
-                        <p className={`text-4xl font-bold ${
-                          report.lighthouse_best_practices >= 90 ? 'text-green-600 dark:text-green-400' :
-                          report.lighthouse_best_practices >= 50 ? 'text-yellow-600 dark:text-yellow-400' :
-                          'text-red-600 dark:text-red-400'
-                        }`}>
+                      <div className="text-center">
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Best Practices</p>
+                        <p className="text-3xl font-bold text-gray-900 dark:text-white">
                           {Math.round(report.lighthouse_best_practices)}
                         </p>
                       </div>
                     )}
                   </div>
-                ) : (
-                  <div className="grid md:grid-cols-4 gap-4">
-                    {[1, 2, 3, 4].map((i) => (
-                      <div key={i} className="text-center p-4 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse">
-                        <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-24 mx-auto mb-3"></div>
-                        <div className="h-10 bg-gray-300 dark:bg-gray-600 rounded w-16 mx-auto"></div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-
-                {!hasLighthouseMetrics(report) && !lighthouseLoading && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400 text-center mt-4">
-                    Lighthouse analysis timed out. The metrics may take longer for some websites.
-                  </p>
-                )}
-              </div>
+                  {(report.lighthouse_performance === null &&
+                    report.lighthouse_accessibility === null &&
+                    report.lighthouse_seo === null &&
+                    report.lighthouse_best_practices === null) && (
+                    <p className="text-sm text-gray-500 dark:text-gray-400 text-center">
+                      Lighthouse metrics are being fetched in the background. Refresh in 30-60 seconds.
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </main>
