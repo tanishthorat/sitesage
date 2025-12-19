@@ -1,47 +1,188 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@heroui/react";
+import { Button, Input } from "@heroui/react";
 import api, { apiEndpoints } from "@/lib/api";
 import { Report, ApiError } from "@/types/api";
 import AppNavbar from "@/components/Navbar";
+import FeatureCard from "@/components/FeatureCard";
+import {
+  ChartBarIcon,
+  LightBulbIcon,
+  LightningBoltIcon,
+} from "@/components/FeatureIcons";
+import { IconCircleCheckFilled, IconWorld } from "@tabler/icons-react";
 
 export default function HomePage() {
   const router = useRouter();
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [touched, setTouched] = useState(false);
 
+  /**
+   * Normalizes URL by adding https:// if protocol is missing
+   */
+  const normalizeUrl = (value: string): string => {
+    const trimmed = value.trim();
+    if (!trimmed) return "";
+
+    // Add https:// if no protocol is present
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) {
+      return `https://${trimmed}`;
+    }
+    return trimmed;
+  };
+
+  /**
+   * Validates URL format - lenient validation for better UX
+   */
+  const validateUrl = (value: string): boolean => {
+    if (!value) return false;
+
+    const trimmedValue = value.trim();
+    if (!trimmedValue) return false;
+
+    // Normalize URL first
+    const normalizedUrl = normalizeUrl(trimmedValue);
+
+    try {
+      // Validate using URL constructor
+      const urlObj = new URL(normalizedUrl);
+
+      // Basic validation: must have http/https protocol and valid hostname
+      const isValidProtocol =
+        urlObj.protocol === "http:" || urlObj.protocol === "https:";
+      const hasValidHostname = urlObj.hostname.length > 0;
+
+      // Check if hostname has at least one dot (e.g., example.com)
+      // OR is localhost (for development)
+      const hasValidFormat =
+        urlObj.hostname.includes(".") || urlObj.hostname === "localhost";
+
+      return isValidProtocol && hasValidHostname && hasValidFormat;
+    } catch {
+      // If URL constructor fails, try a lenient pattern check
+      // This regex allows domains like example.com, sub.example.com, etc.
+      const domainPattern =
+        /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(\/.*)?$/;
+      return domainPattern.test(trimmedValue);
+    }
+  };
+
+  /**
+   * Memoized validation state to prevent unnecessary re-renders
+   */
+  const validationState = useMemo(() => {
+    if (!touched || !url) return undefined;
+    return validateUrl(url) ? "valid" : "invalid";
+  }, [url, touched]);
+
+  /**
+   * Computed error message for inline validation feedback
+   */
+  const urlErrorMessage = useMemo(() => {
+    if (!touched || !url) return "";
+    if (!validateUrl(url)) {
+      return "Please enter a valid URL (e.g., example.com or tanishdev.me)";
+    }
+    return "";
+  }, [url, touched]);
+
+  /**
+   * Handle input change with immediate validation
+   */
+  const handleUrlChange = (value: string) => {
+    setUrl(value);
+    setError(""); // Clear API errors when user types
+    if (!touched) setTouched(true);
+  };
+
+  /**
+   * Handle form submission with comprehensive error handling
+   */
   const handleAnalyze = async (e: FormEvent) => {
     e.preventDefault();
-    if (!url) return;
+
+    setTouched(true);
+
+    // Trim the URL
+    const trimmedUrl = url.trim();
+
+    // Client-side validation before API call
+    if (!trimmedUrl) {
+      setError("Please enter a URL before analyzing");
+      return;
+    }
+
+    if (!validateUrl(trimmedUrl)) {
+      setError("Please enter a valid URL before analyzing");
+      return;
+    }
 
     setError("");
     setLoading(true);
 
     try {
-      // Call the analyze API
-      const response = await api.post(apiEndpoints.analyze, { url });
+      // Normalize URL - always add https:// if missing
+      const normalizedUrl = normalizeUrl(trimmedUrl);
+
+      console.log("Sending request with URL:", normalizedUrl); // Debug log
+
+      const response = await api.post(apiEndpoints.analyze, {
+        url: normalizedUrl,
+      });
       const report: Report = response.data;
 
       // Redirect to the public report page
       router.push(`/report/${report.id}`);
-    } catch (err: any) {
-      console.error('Error analyzing URL:', err);
-      const apiError = err.response?.data as ApiError;
-      
-      if (err.response?.status === 429) {
-        const detail = typeof apiError.detail === 'object' ? apiError.detail : null;
+    } catch (err: unknown) {
+      console.error("Error analyzing URL:", err);
+
+      // Type guard for axios error
+      const isAxiosError = err && typeof err === "object" && "response" in err;
+      const status = isAxiosError
+        ? ((err as Record<string, unknown>).response as Record<string, unknown>)
+            ?.status
+        : null;
+      const apiError = isAxiosError
+        ? ((
+            (err as Record<string, unknown>).response as Record<string, unknown>
+          )?.data as ApiError)
+        : null;
+
+      // Comprehensive error handling
+      if (status === 429) {
+        const detail =
+          typeof apiError?.detail === "object" ? apiError.detail : null;
         setError(
-          detail?.message || 
-          'Rate limit exceeded. Please wait before analyzing this URL again.'
+          detail?.message ||
+            "Rate limit exceeded. Please wait before analyzing this URL again."
         );
+      } else if (status === 400) {
+        setError("Invalid URL format. Please check and try again.");
+      } else if (status === 404) {
+        setError("Website not found. Please verify the URL is accessible.");
+      } else if (status === 500) {
+        setError("Server error. Please try again later.");
+      } else if (
+        (err &&
+          typeof err === "object" &&
+          "code" in err &&
+          (err as Record<string, unknown>).code === "ECONNABORTED") ||
+        (err instanceof Error && err.message.includes("timeout"))
+      ) {
+        setError("Request timeout. The website took too long to respond.");
       } else {
-        const errorMessage = apiError?.error || 
-          (typeof apiError?.detail === 'string' ? apiError.detail : 'Failed to analyze URL');
+        const errorMessage =
+          apiError?.error ||
+          (typeof apiError?.detail === "string"
+            ? apiError.detail
+            : "Failed to analyze URL. Please try again.");
         setError(errorMessage);
       }
+    } finally {
       setLoading(false);
     }
   };
@@ -69,109 +210,106 @@ export default function HomePage() {
         {/* Analysis Input */}
         <div className="max-w-2xl mx-auto">
           <form onSubmit={handleAnalyze} className="space-y-4">
+            {/* Error Display */}
             {error && (
               <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="w-5 h-5 text-red-600 dark:text-red-400 mt-0.5 shrink-0"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {error}
+                  </p>
+                </div>
               </div>
             )}
-            
+
             <div className="flex flex-col sm:flex-row gap-3">
-              <input
-                type="url"
-                required
+              {/* Smart Input with Validation */}
+              <Input
+                type="text"
                 value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="https://example.com"
+                onValueChange={handleUrlChange}
+                onBlur={() => setTouched(true)}
+                placeholder="example.com or https://example.com"
                 disabled={loading}
-                className="flex-1 px-6 py-4 text-lg border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                validationState={validationState}
+                errorMessage={urlErrorMessage}
+                isRequired
+                size="lg"
+                variant="bordered"
+                classNames={{
+                  base: "flex-1",
+                  input: [
+                    "text-lg",
+                    "placeholder:text-gray-400",
+                    "dark:placeholder:text-gray-500",
+                  ],
+                  inputWrapper: [
+                    "border-gray-300",
+                    "dark:border-gray-600",
+                    "hover:border-indigo-500",
+                    "dark:hover:border-indigo-400",
+                    "group-data-[focus=true]:border-indigo-500",
+                    "dark:group-data-[focus=true]:border-indigo-400",
+                  ],
+                  errorMessage: "text-rose-500 dark:text-rose-500 text-sm mt-1",
+                }}
+                startContent={
+                  <IconWorld stroke={2} />
+                }
+                endContent={
+                  validationState === "valid" && (
+                    <IconCircleCheckFilled className="text-primary" stroke={2} />
+                  )
+                }
               />
+
               <Button
                 type="submit"
                 color="primary"
                 size="lg"
                 isLoading={loading}
+                isDisabled={loading || (touched && (!url || !!urlErrorMessage))}
                 className="px-8 py-4 text-lg shadow-lg w-full sm:w-auto"
               >
-                {loading ? 'Analyzing...' : 'Analyze Now'}
+                {loading ? "Analyzing..." : "Analyze Now"}
               </Button>
             </div>
           </form>
         </div>
 
         {/* Features */}
-        <div className="grid md:grid-cols-3 gap-8 mt-20">
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-indigo-100 dark:bg-indigo-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-indigo-600 dark:text-indigo-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              SEO Analysis
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Comprehensive SEO scoring and detailed metrics for your website
-            </p>
-          </div>
+        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6 my-16">
+          <FeatureCard
+            icon={<ChartBarIcon />}
+            title="SEO Analysis"
+            description="Comprehensive SEO scoring and detailed metrics for your website"
+            colorVariant="indigo"
+          />
 
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-purple-600 dark:text-purple-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              PageSpeed Insights
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Google Lighthouse metrics for performance, accessibility, and best
-              practices
-            </p>
-          </div>
+          <FeatureCard
+            icon={<LightningBoltIcon />}
+            title="PageSpeed Insights"
+            description="Google Lighthouse metrics for performance, accessibility, and best practices"
+            colorVariant="purple"
+          />
 
-          <div className="text-center p-6">
-            <div className="w-16 h-16 bg-pink-100 dark:bg-pink-900/30 rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg
-                className="w-8 h-8 text-pink-600 dark:text-pink-400"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
-                />
-              </svg>
-            </div>
-            <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
-              AI Recommendations
-            </h3>
-            <p className="text-gray-600 dark:text-gray-400">
-              Smart, actionable suggestions powered by AI to boost your SEO
-            </p>
-          </div>
+          <FeatureCard
+            icon={<LightBulbIcon />}
+            title="AI Recommendations"
+            description="Smart, actionable suggestions powered by AI to boost your SEO"
+            colorVariant="pink"
+            className="sm:col-span-2 lg:col-span-1"
+          />
         </div>
       </main>
     </div>
