@@ -1,15 +1,15 @@
 @import "tailwindcss";
 
+/* In Tailwind v4, we must explicitly link the legacy JS config 
+   to load the HeroUI plugin and content paths.
+   The path must be relative to this CSS file.
+*/
+@config "../../tailwind.config.js";
+
+/* Custom CSS variables and styles */
 :root {
   --background: #ffffff;
   --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 @media (prefers-color-scheme: dark) {
