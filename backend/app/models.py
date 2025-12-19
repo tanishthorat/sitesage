@@ -39,6 +39,17 @@ class Report(Base):
     image_count = Column(Integer, default=0)
     missing_alt_count = Column(Integer, default=0)
     
+    # Pro SEO Metrics
+    word_count = Column(Integer, default=0)
+    internal_links_count = Column(Integer, default=0)
+    external_links_count = Column(Integer, default=0)
+    canonical_url = Column(String, nullable=True)
+    og_tags_present = Column(Boolean, default=False)
+    schema_present = Column(Boolean, default=False)
+    robots_txt_exists = Column(Boolean, default=False)
+    sitemap_exists = Column(Boolean, default=False)
+    top_keywords = Column(JSON, nullable=True)  # List of top keywords
+    
     # Performance
     load_time = Column(Float, default=0.0)  # In seconds
     seo_score = Column(Integer, default=0)
