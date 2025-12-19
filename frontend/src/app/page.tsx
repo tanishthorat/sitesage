@@ -2,16 +2,47 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Button } from "@heroui/react";
+import api, { apiEndpoints } from "@/lib/api";
+import { Report, ApiError } from "@/types/api";
 import AppNavbar from "@/components/Navbar";
 
 export default function HomePage() {
   const router = useRouter();
   const [url, setUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
-  const handleAnalyze = (e: FormEvent) => {
+  const handleAnalyze = async (e: FormEvent) => {
     e.preventDefault();
-    if (url) {
-      router.push(`/dashboard?url=${encodeURIComponent(url)}`);
+    if (!url) return;
+
+    setError("");
+    setLoading(true);
+
+    try {
+      // Call the analyze API
+      const response = await api.post(apiEndpoints.analyze, { url });
+      const report: Report = response.data;
+
+      // Redirect to the public report page
+      router.push(`/report/${report.id}`);
+    } catch (err: any) {
+      console.error('Error analyzing URL:', err);
+      const apiError = err.response?.data as ApiError;
+      
+      if (err.response?.status === 429) {
+        const detail = typeof apiError.detail === 'object' ? apiError.detail : null;
+        setError(
+          detail?.message || 
+          'Rate limit exceeded. Please wait before analyzing this URL again.'
+        );
+      } else {
+        const errorMessage = apiError?.error || 
+          (typeof apiError?.detail === 'string' ? apiError.detail : 'Failed to analyze URL');
+        setError(errorMessage);
+      }
+      setLoading(false);
     }
   };
 
@@ -38,6 +69,12 @@ export default function HomePage() {
         {/* Analysis Input */}
         <div className="max-w-2xl mx-auto">
           <form onSubmit={handleAnalyze} className="space-y-4">
+            {error && (
+              <div className="p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+              </div>
+            )}
+            
             <div className="flex flex-col sm:flex-row gap-3">
               <input
                 type="url"
@@ -45,14 +82,18 @@ export default function HomePage() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 placeholder="https://example.com"
-                className="flex-1 px-6 py-4 text-lg border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-white shadow-sm"
+                disabled={loading}
+                className="flex-1 px-6 py-4 text-lg border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:border-transparent dark:bg-gray-800 dark:text-white shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
               />
-              <button
+              <Button
                 type="submit"
-                className="px-8 py-4 text-lg bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white font-medium rounded-lg transition shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
+                color="primary"
+                size="lg"
+                isLoading={loading}
+                className="px-8 py-4 text-lg shadow-lg w-full sm:w-auto"
               >
-                Analyze Now
-              </button>
+                {loading ? 'Analyzing...' : 'Analyze Now'}
+              </Button>
             </div>
           </form>
         </div>

@@ -1,6 +1,5 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
@@ -17,11 +16,12 @@ import {
   Avatar,
   Divider,
   Tooltip,
+  Skeleton,
 } from "@heroui/react";
 import { useAuth } from "@/contexts/AuthContext";
 
 export default function AppNavbar() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, loading } = useAuth();
   const router = useRouter();
 
   const handleLogout = async () => {
@@ -63,7 +63,21 @@ export default function AppNavbar() {
 
       {/* Right side content */}
       <NavbarContent justify="end">
-        {user ? (
+        {loading ? (
+          /* Loading Skeleton - Shows while checking authentication */
+          <>
+            {/* Dashboard Link Skeleton */}
+            <NavbarItem className="hidden sm:flex">
+              <Skeleton className="h-4 w-20 rounded-lg" />
+            </NavbarItem>
+
+            {/* Avatar Skeleton */}
+            <NavbarItem className="flex items-center gap-2">
+              <Skeleton className="h-8 w-8 rounded-full" />
+            </NavbarItem>
+          </>
+        ) : user ? (
+          /* Authenticated User - Show Dashboard + Avatar Dropdown */
           <>
             {/* Dashboard Link */}
             <NavbarItem className="hidden sm:flex">
@@ -94,7 +108,7 @@ export default function AppNavbar() {
                     src={user.photoURL || undefined}
                   />
                 </DropdownTrigger>
-                <DropdownMenu aria-label="User menu actions" variant="flat">
+                <DropdownMenu disabledKeys={["settings"]} aria-label="User menu actions" variant="flat">
                   <DropdownItem
                     key="profile"
                     className="h-14 gap-2"
@@ -113,6 +127,7 @@ export default function AppNavbar() {
                     Dashboard
                   </DropdownItem>
                   <DropdownItem
+                 
                     key="settings"
                     textValue="Settings"
                     onClick={() => router.push("/settings")}
@@ -135,6 +150,7 @@ export default function AppNavbar() {
             </NavbarItem>
           </>
         ) : (
+          /* Guest User - Show Sign In/Sign Up Buttons */
           <>
             {/* Sign In Button */}
             <NavbarItem>

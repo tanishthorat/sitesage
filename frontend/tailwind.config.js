@@ -144,9 +144,9 @@ module.exports = {
             info: brandColors.highlightCyan,
 
             // Dark mode surfaces using your Deep Olive scale
-            content1: brandColors.deepOlive[900],
-            content2: brandColors.deepOlive[800],
-            content3: brandColors.deepOlive[700],
+            // content1: brandColors.deepOlive[900],
+            // content2: brandColors.deepOlive[800],
+            // content3: brandColors.deepOlive[700],
           },
         },
       },

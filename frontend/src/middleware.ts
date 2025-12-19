@@ -6,8 +6,9 @@ import type { NextRequest } from 'next/server';
  * 
  * This middleware runs on the Edge and handles:
  * 1. Redirecting authenticated users away from auth pages (login/signup/forgot-password)
- * 2. Protecting dashboard routes from unauthenticated users
- * 3. Preventing flash of unauthenticated content
+ * 2. Protecting private routes (dashboard, settings, profile) from unauthenticated users
+ * 3. Allowing public access to /report/[id] routes (guests and users can view reports)
+ * 4. Preventing flash of unauthenticated content
  */
 export function middleware(request: NextRequest) {
   // Check for Firebase auth session cookie
@@ -29,6 +30,7 @@ export function middleware(request: NextRequest) {
     pathname.startsWith('/forgot-password');
 
   // Define protected routes that require authentication
+  // Note: /report/[id] is intentionally NOT protected - it's public for guests and users
   const isProtectedRoute = 
     pathname.startsWith('/dashboard') ||
     pathname.startsWith('/settings') ||
