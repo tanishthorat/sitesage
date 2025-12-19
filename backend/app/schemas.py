@@ -24,7 +24,7 @@ class ReportCreate(ReportBase):
 
 class ReportResponse(ReportBase):
     id: int
-    user_id: int
+    user_id: Optional[int] = None  # Allow None for guest users
     created_at: datetime
     title: Optional[str]
     meta_description: Optional[str]

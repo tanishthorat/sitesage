@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     # CORS
     CORS_ORIGINS: list = ["http://localhost:3000", "http://localhost:8000"]
     
+    # Security - Internal API Key for BFF Pattern
+    INTERNAL_API_KEY: Optional[str] = None
+    
     # Google Gemini
     GOOGLE_API_KEY: Optional[str] = None
     
@@ -27,6 +30,9 @@ class Settings(BaseSettings):
     
     # Rate Limiting
     RATE_LIMIT_PER_MINUTE: int = 30
+    
+    # Ephemeral Storage - Guest Report Cleanup
+    GUEST_REPORT_RETENTION_HOURS: int = 24
     
     # Logging
     LOG_LEVEL: str = "INFO"

@@ -1,12 +1,16 @@
 /**
  * API Client with Firebase Authentication
+ * 
+ * SECURITY: This client now uses the BFF (Backend-for-Frontend) proxy pattern.
+ * All requests go through /api/proxy/... which adds the internal API key server-side.
+ * The browser never sees the internal API key.
  */
 import axios from 'axios';
 import { auth } from './firebase';
 
-// Create axios instance
+// Create axios instance pointing to our Next.js proxy (not directly to backend)
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  baseURL: '/api', // Route through Next.js BFF proxy
   headers: {
     'Content-Type': 'application/json',
   },

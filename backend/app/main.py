@@ -19,6 +19,7 @@ from .config import settings
 from .logger import logger
 from .exceptions import SiteSageException, CrawlerException, AIAnalysisException, DatabaseException
 from .middleware.rate_limit import RateLimitMiddleware
+from .security import verify_internal_api_key
 
 # Application lifespan handler
 @asynccontextmanager
@@ -60,10 +61,11 @@ app = FastAPI(
 # Add middlewares
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
+    allow_origins=settings.CORS_ORIGINS,  # Strictly controlled via environment
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],  # Explicit methods only
+    allow_headers=["Content-Type", "Authorization", "X-INTERNAL-API-KEY"],  # Include internal key
+    expose_headers=["*"],
 )
 
 app.add_middleware(RateLimitMiddleware)
@@ -171,7 +173,8 @@ async def analyze_url(
     request: schemas.ReportCreate,
     background_tasks: BackgroundTasks,
     current_user: Optional[models.User] = Depends(get_optional_user),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    _: bool = Depends(verify_internal_api_key)  # BFF Security: Only our Next.js proxy can call this
 ):
     """
     Analyze a website URL for SEO performance (Supports both authenticated users and guests).
@@ -294,7 +297,8 @@ async def get_reports(
     skip: int = 0,
     limit: int = 100,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    _: bool = Depends(verify_internal_api_key)
 ):
     """
     Retrieve authenticated user's SEO analysis reports with pagination.
@@ -334,7 +338,8 @@ async def get_reports(
 async def get_report(
     report_id: int,
     current_user: Optional[models.User] = Depends(get_optional_user),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    _: bool = Depends(verify_internal_api_key)
 ):
     """
     Retrieve a specific SEO analysis report by ID (supports guest and authenticated access).
@@ -404,7 +409,8 @@ async def get_report(
 )
 async def get_unique_urls(
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    _: bool = Depends(verify_internal_api_key)
 ):
     """
     Get list of unique URLs analyzed by the current user with metadata.
@@ -456,7 +462,8 @@ async def get_unique_urls(
 async def get_url_history(
     url: str,
     current_user: models.User = Depends(get_current_user),
-    db: Session = Depends(database.get_db)
+    db: Session = Depends(database.get_db),
+    _: bool = Depends(verify_internal_api_key)
 ):
     """
     Get all reports for a specific URL by the current user.
@@ -491,6 +498,93 @@ async def get_url_history(
     except SQLAlchemyError as e:
         logger.error(f"Database error while fetching URL history: {e}")
         raise DatabaseException("Failed to retrieve URL history")
+
+# Admin/Maintenance endpoints
+@app.post(
+    f"{settings.API_V1_PREFIX}/admin/cleanup-guest-reports",
+    tags=["Admin"],
+    status_code=status.HTTP_200_OK
+)
+async def cleanup_guest_reports_endpoint(
+    retention_hours: Optional[int] = None,
+    dry_run: bool = False,
+    db: Session = Depends(database.get_db),
+    _: bool = Depends(verify_internal_api_key)
+):
+    """
+    Clean up guest reports older than retention period (Admin/Maintenance endpoint).
+    
+    EPHEMERAL STORAGE POLICY:
+    - Guest reports (user_id = NULL) are temporary
+    - Automatically cleaned after retention period
+    - Default: 24 hours
+    
+    Args:
+        retention_hours: Hours to keep guest reports (default: from config)
+        dry_run: If True, only count without deleting (default: False)
+        
+    Returns:
+        Cleanup statistics
+        
+    Usage:
+        POST /api/v1/admin/cleanup-guest-reports?retention_hours=24&dry_run=true
+    """
+    from .services.cleanup import cleanup_guest_reports, get_guest_report_stats
+    
+    # Use config value if not specified
+    retention = retention_hours if retention_hours is not None else settings.GUEST_REPORT_RETENTION_HOURS
+    
+    logger.info(f"Starting guest report cleanup (retention: {retention}h, dry_run: {dry_run})")
+    
+    try:
+        # Get stats before cleanup
+        stats_before = get_guest_report_stats(db)
+        
+        # Perform cleanup
+        cleanup_result = cleanup_guest_reports(db, retention, dry_run)
+        
+        # Get stats after cleanup
+        stats_after = get_guest_report_stats(db)
+        
+        return {
+            "success": True,
+            "cleanup": cleanup_result,
+            "stats_before": stats_before,
+            "stats_after": stats_after
+        }
+        
+    except Exception as e:
+        logger.error(f"Failed to cleanup guest reports: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Cleanup failed: {str(e)}"
+        )
+
+@app.get(
+    f"{settings.API_V1_PREFIX}/admin/guest-report-stats",
+    tags=["Admin"]
+)
+async def get_guest_report_stats_endpoint(
+    db: Session = Depends(database.get_db),
+    _: bool = Depends(verify_internal_api_key)
+):
+    """
+    Get statistics about guest reports for monitoring.
+    
+    Returns:
+        Statistics including total count and oldest report age
+    """
+    from .services.cleanup import get_guest_report_stats
+    
+    try:
+        stats = get_guest_report_stats(db)
+        return {"success": True, "stats": stats}
+    except Exception as e:
+        logger.error(f"Failed to get guest report stats: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to get stats: {str(e)}"
+        )
 
 
 if __name__ == "__main__":
