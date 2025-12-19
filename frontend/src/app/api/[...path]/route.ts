@@ -5,9 +5,9 @@
  * It ensures that only our Next.js frontend can call the backend by adding the internal API key.
  * 
  * Flow:
- * 1. Browser makes request to /api/proxy/... (without internal key)
+ * 1. Browser makes request to /api/analyze (without internal key)
  * 2. This route reads INTERNAL_API_KEY from server-side environment
- * 3. Forwards request to FastAPI WITH the internal key header
+ * 3. Forwards request to FastAPI /api/v1/analyze WITH the internal key header
  * 4. Returns the backend response to the browser
  * 
  * Security Benefits:
@@ -27,7 +27,7 @@ const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
  */
 async function handleProxyRequest(
   request: NextRequest,
-  { params }: { params: { path: string[] } }
+  context: { params: Promise<{ path: string[] }> }
 ) {
   try {
     // Validate internal API key is configured
@@ -39,9 +39,12 @@ async function handleProxyRequest(
       );
     }
 
-    // Construct the backend URL
-    const path = params.path.join('/');
-    const backendUrl = `${BACKEND_URL}/${path}`;
+    // Await params in Next.js 15+
+    const params = await context.params;
+    
+    // Construct the backend URL with /api/v1/ prefix
+    const path = params.path?.join('/') || '';
+    const backendUrl = `${BACKEND_URL}/api/v1/${path}`;
     
     // Get the request body if present
     let body: unknown = undefined;

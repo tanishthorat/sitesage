@@ -126,7 +126,6 @@ export default function DashboardPage() {
   };
 
   return (
-    <ProtectedRoute>
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         {/* Header */}
         <header className="bg-white dark:bg-gray-800 shadow">
@@ -373,6 +372,5 @@ export default function DashboardPage() {
           )}
         </main>
       </div>
-    </ProtectedRoute>
   );
 }

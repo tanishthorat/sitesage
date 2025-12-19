@@ -65,16 +65,16 @@ export default api;
 // API Endpoints
 export const apiEndpoints = {
   // Analysis
-  analyze: '/api/v1/analyze',
+  analyze: 'analyze',
   
   // Reports
-  reports: '/api/v1/reports',
-  reportById: (id: number) => `/api/v1/reports/${id}`,
+  reports: 'reports',
+  reportById: (id: number) => `reports/${id}`,
   
   // History
-  historyUnique: '/api/v1/history/unique',
-  historyByUrl: (url: string) => `/api/v1/history/${encodeURIComponent(url)}`,
+  historyUnique: 'history/unique',
+  historyByUrl: (url: string) => `history/${encodeURIComponent(url)}`,
   
   // Health
-  health: '/health',
+  health: 'health',
 };
