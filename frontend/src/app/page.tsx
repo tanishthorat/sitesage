@@ -2,9 +2,7 @@
 
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
-import { Button, Chip } from "@heroui/react";
-import { IconUser } from '@tabler/icons-react';
+import AppNavbar from "@/components/Navbar";
 
 export default function HomePage() {
   const router = useRouter();
@@ -18,31 +16,9 @@ export default function HomePage() {
   };
 
   return (
-    <div className="min-h-screen bg-linear-to-br from-indigo-50 via-white to-purple-50 dark:from-gray-900 dark:via-gray-800 dark:to-indigo-900">
+    <div className="min-h-screen ">
       {/* Navigation */}
-      <nav className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-            SiteSage
-          </h1>
-           <Button variant="ghost">Button by tanish</Button>
-          <div className="flex items-center gap-4">
-            <Link
-              href="/login"
-              className="px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-indigo-600 dark:hover:text-indigo-400 transition"
-            >
-              Sign In
-              <IconUser stroke={2} />
-            </Link>
-            <Link
-              href="/signup"
-              className="px-4 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 dark:bg-indigo-500 dark:hover:bg-indigo-600 text-white rounded-lg transition"
-            >
-              Sign Up
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <AppNavbar />
 
       {/* Hero Section */}
       <main className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20">

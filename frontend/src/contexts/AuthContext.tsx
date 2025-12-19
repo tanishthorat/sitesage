@@ -44,8 +44,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = async (email: string, password: string) => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to sign in');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to sign in';
+      throw new Error(message);
     }
   };
 
@@ -57,24 +58,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (displayName && userCredential.user) {
         await updateProfile(userCredential.user, { displayName });
       }
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to sign up');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to sign up';
+      throw new Error(message);
     }
   };
 
   const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to sign out');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to sign out';
+      throw new Error(message);
     }
   };
 
   const resetPassword = async (email: string) => {
     try {
       await sendPasswordResetEmail(auth, email);
-    } catch (error: any) {
-      throw new Error(error.message || 'Failed to send password reset email');
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Failed to send password reset email';
+      throw new Error(message);
     }
   };
 
