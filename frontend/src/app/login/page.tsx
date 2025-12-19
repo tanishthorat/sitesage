@@ -10,6 +10,7 @@ import { Input, Button, Divider, Checkbox } from "@heroui/react";
 import { IconArrowNarrowRight } from "@tabler/icons-react";
 import AuthBrandPanel from "@/components/auth/AuthBrandPanel";
 import { getAuthErrorMessage } from "@/lib/auth-errors";
+import { getRedirectUrl, clearRedirectCookie } from "@/lib/redirect-utils";
 
 interface LoginFormData {
   email: string;
@@ -40,7 +41,15 @@ export default function LoginPage() {
 
     try {
       await signIn(data.email, data.password);
-      router.push("/dashboard");
+      
+      // Get redirect URL from secure cookie
+      const redirectUrl = getRedirectUrl(document.cookie);
+      
+      // Clear the redirect cookie after reading it
+      clearRedirectCookie();
+      
+      // Redirect to the intended destination
+      router.push(redirectUrl);
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {
@@ -54,7 +63,15 @@ export default function LoginPage() {
 
     try {
       await signInWithGoogle();
-      router.push("/dashboard");
+      
+      // Get redirect URL from secure cookie
+      const redirectUrl = getRedirectUrl(document.cookie);
+      
+      // Clear the redirect cookie after reading it
+      clearRedirectCookie();
+      
+      // Redirect to the intended destination
+      router.push(redirectUrl);
     } catch (err: unknown) {
       setError(getAuthErrorMessage(err));
     } finally {
