@@ -65,7 +65,7 @@ jobs:
               --restart always \
               -p 8000:8000 \
               --network sitesage-net \
-              --env-file .env \
+              --env-file /home/ubuntu/sitesage/.env \
               ghcr.io/${{ env.IMAGE_NAME }}:latest
             
             # Cleanup old images (keep last 3)
