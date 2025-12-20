@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/contexts/AuthContext'
 import { useRouter } from 'next/navigation'
-import Sidebar from '@/components/dashboard/Sidebar'
+import Sidebar from '@/components/ui/SidebarHeroUI'
 import { IconArrowLeft } from '@tabler/icons-react'
 
 export default function SettingsPage() {
