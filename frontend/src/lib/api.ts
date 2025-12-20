@@ -16,6 +16,14 @@ const api = axios.create({
   },
 });
 
+// Create a public API instance that doesn't require authentication
+export const publicApi = axios.create({
+  baseURL: '/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 // Request interceptor to attach Firebase ID token
 api.interceptors.request.use(
   async (config) => {
@@ -47,12 +55,9 @@ api.interceptors.response.use(
           const token = await user.getIdToken(true); // Force refresh
           error.config.headers.Authorization = `Bearer ${token}`;
           return api.request(error.config);
-        } catch (refreshError) {
-          console.error('Failed to refresh token:', refreshError);
-          // Redirect to login if refresh fails
-          if (typeof window !== 'undefined') {
-            window.location.href = '/login';
-          }
+        } catch {
+          // Silently fail - let the calling code handle 401
+          // Don't redirect to login automatically for API calls
         }
       }
     }
@@ -69,7 +74,7 @@ export const apiEndpoints = {
   
   // Reports
   reports: 'reports',
-  reportById: (id: number) => `reports/${id}`,
+  reportById: (id: number | string) => `reports/${id}`,
   
   // History
   historyUnique: 'history/unique',

@@ -1,28 +1,33 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'next/navigation';
 import { Button } from '@heroui/react';
-import api, { apiEndpoints } from '@/lib/api';
 import { Report } from '@/types/api';
 import AppNavbar from '@/components/Navbar';
 import BarChart from '@/components/charts/BarChart';
 import { IconDownload, IconLock } from '@tabler/icons-react';
+import { 
+  fetchReportById, 
+  hasLighthouseMetrics, 
+  pollLighthouseMetrics 
+} from '@/services/reportService';
 
 interface ReportPageProps {
   params: Promise<{ id: string }>;
 }
 
 export default function ReportPage({ params }: ReportPageProps) {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const [reportId, setReportId] = useState<string | null>(null);
   const [report, setReport] = useState<Report | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [lighthouseLoading, setLighthouseLoading] = useState(false);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const cleanupPollingRef = useRef<(() => void) | null>(null);
+  const hasLoadedRef = useRef(false); // Prevent duplicate loads
 
   // Unwrap params promise
   useEffect(() => {
@@ -32,89 +37,65 @@ export default function ReportPage({ params }: ReportPageProps) {
   // Cleanup polling on unmount
   useEffect(() => {
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
+      if (cleanupPollingRef.current) {
+        cleanupPollingRef.current();
+        cleanupPollingRef.current = null;
       }
     };
-  }, []);
-
-  // Check if Lighthouse metrics are loaded
-  const hasLighthouseMetrics = (report: Report | null): boolean => {
-    if (!report) return false;
-    return report.lighthouse_performance !== null ||
-           report.lighthouse_accessibility !== null ||
-           report.lighthouse_seo !== null ||
-           report.lighthouse_best_practices !== null;
-  };
-
-  // Poll for Lighthouse updates
-  const startPollingLighthouse = useCallback((id: string) => {
-    setLighthouseLoading(true);
-
-    // Clear any existing polling
-    if (pollingIntervalRef.current) {
-      clearInterval(pollingIntervalRef.current);
-    }
-
-    // Poll every 5 seconds for up to 2 minutes (24 attempts)
-    let attempts = 0;
-    const maxAttempts = 24;
-
-    pollingIntervalRef.current = setInterval(async () => {
-      attempts++;
-
-      try {
-        const response = await api.get(`${apiEndpoints.reports}/${id}`);
-        const updatedReport = response.data;
-
-        // Check if Lighthouse metrics are now available
-        if (hasLighthouseMetrics(updatedReport)) {
-          setReport(updatedReport);
-          setLighthouseLoading(false);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        } else if (attempts >= maxAttempts) {
-          // Stop polling after max attempts
-          setLighthouseLoading(false);
-          if (pollingIntervalRef.current) {
-            clearInterval(pollingIntervalRef.current);
-            pollingIntervalRef.current = null;
-          }
-        }
-      } catch (err) {
-        console.error('Error polling for Lighthouse metrics:', err);
-        // Continue polling even on error
-      }
-    }, 5000); // Poll every 5 seconds
   }, []);
 
   // Fetch report data
   useEffect(() => {
     if (!reportId) return;
+    if (authLoading) return; // Wait for auth to be ready
+    if (hasLoadedRef.current) return; // Prevent duplicate loads
 
-    const fetchReport = async () => {
+    const loadReport = async () => {
       try {
         setLoading(true);
-        const response = await api.get(`${apiEndpoints.reports}/${reportId}`);
-        setReport(response.data);
-
-        // Start polling for Lighthouse metrics if they're not already loaded
-        if (!hasLighthouseMetrics(response.data)) {
-          startPollingLighthouse(reportId);
+        setError('');
+        hasLoadedRef.current = true; // Mark as loaded
+        
+        const result = await fetchReportById(reportId, !!user);
+        
+        if (result.error) {
+          setError(result.error);
+          setReport(null);
+          return;
         }
-      } catch (err: unknown) {
-        console.error('Error fetching report:', err);
-        const errorMessage = (err as { response?: { data?: { error?: string } } }).response?.data?.error || 'Failed to load report';
-        setError(errorMessage);
+        
+        if (result.data) {
+          setReport(result.data);
+
+          // Start polling for Lighthouse metrics if not loaded
+          if (!hasLighthouseMetrics(result.data)) {
+            setLighthouseLoading(true);
+            
+            cleanupPollingRef.current = await pollLighthouseMetrics(
+              reportId,
+              !!user,
+              (updatedReport) => {
+                setReport(updatedReport);
+              },
+              () => {
+                setLighthouseLoading(false);
+                cleanupPollingRef.current = null;
+              },
+              24, // max attempts
+              5000 // 5 seconds interval
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Unexpected error loading report:', err);
+        setError('An unexpected error occurred');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchReport();
-  }, [reportId, startPollingLighthouse]);
+    loadReport();
+  }, [reportId, authLoading, user]);
 
   // Handle PDF Export with gating
   const handleExportPdf = () => {

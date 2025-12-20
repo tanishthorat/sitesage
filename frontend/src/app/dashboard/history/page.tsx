@@ -1,17 +1,20 @@
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Button, Card, CardBody, Chip } from '@heroui/react';
 import api, { apiEndpoints } from '@/lib/api';
 import { Report } from '@/types/api';
 import AppNavbar from '@/components/Navbar';
+import { useAuth } from '@/contexts/AuthContext';
 import { IconArrowLeft, IconExternalLink, IconChartLine } from '@tabler/icons-react';
 
 function HistoryContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const url = searchParams.get('url');
+  const { user, loading: authLoading } = useAuth();
+  const hasLoadedRef = useRef(false); // Prevent duplicate loads
   
   const [reports, setReports] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -23,9 +26,18 @@ function HistoryContent() {
       return;
     }
 
+    if (authLoading) return; // Wait for auth to be ready
+    if (!user) {
+      // Redirect to login if not authenticated
+      router.push('/login');
+      return;
+    }
+    if (hasLoadedRef.current) return; // Prevent duplicate loads
+
     const fetchReports = async () => {
       try {
         setLoading(true);
+        hasLoadedRef.current = true; // Mark as loaded
         const response = await api.get(apiEndpoints.historyByUrl(url));
         setReports(response.data);
       } catch (err: unknown) {
@@ -38,7 +50,7 @@ function HistoryContent() {
     };
 
     fetchReports();
-  }, [url, router]);
+  }, [url, router, authLoading, user]);
 
   const handleViewReport = (reportId: number) => {
     router.push(`/report/${reportId}`);

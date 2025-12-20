@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { EChartsOption } from 'echarts';
 
 interface BaseChartProps {
@@ -11,6 +11,17 @@ interface BaseChartProps {
   theme?: string;
 }
 
+type EChartsReactComponent = React.ComponentType<{
+  option: EChartsOption;
+  style?: React.CSSProperties;
+  className?: string;
+  showLoading?: boolean;
+  theme?: string;
+  notMerge?: boolean;
+  lazyUpdate?: boolean;
+  opts?: { renderer: 'canvas' | 'svg' };
+}>;
+
 export default function BaseChart({
   option,
   style = { height: '400px', width: '100%' },
@@ -18,16 +29,16 @@ export default function BaseChart({
   loading = false,
   theme = 'light'
 }: BaseChartProps) {
-  const [ReactECharts, setReactECharts] = useState<any>(null);
+  const [Chart, setChart] = useState<EChartsReactComponent | null>(null);
 
   useEffect(() => {
     // Dynamically import echarts-for-react only on client side
     import('echarts-for-react').then((module) => {
-      setReactECharts(() => module.default);
+      setChart(() => module.default as EChartsReactComponent);
     });
   }, []);
 
-  if (!ReactECharts) {
+  if (!Chart) {
     return (
       <div style={style} className={className}>
         <div className="flex items-center justify-center h-full">
@@ -38,7 +49,7 @@ export default function BaseChart({
   }
 
   return (
-    <ReactECharts
+    <Chart
       option={option}
       style={style}
       className={className}
