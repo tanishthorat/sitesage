@@ -1,5 +1,11 @@
 FROM python:3.11-slim
 
+# 1. Stop the "debconf" errors (Tells Linux "I am a robot, don't ask me questions")
+ENV DEBIAN_FRONTEND=noninteractive
+
+# 2. Stop the "pip root" warning (Tells pip "I know I am root, it's okay")
+ENV PIP_ROOT_USER_ACTION=ignore
+
 WORKDIR /app
 
 # Install system dependencies
