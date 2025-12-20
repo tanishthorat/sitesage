@@ -34,7 +34,13 @@ jobs:
         with:
           context: ./backend
           push: true
-          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+          build-args: |
+            VERSION=1.0.1
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            GIT_COMMIT=${{ github.sha }}
+          tags: |
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.sha }}
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.3
@@ -46,20 +52,21 @@ jobs:
             # Login to GHCR inside EC2
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Pull new image
-            docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
+            # Pull new image with specific SHA
+            docker pull ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
             
             # Stop old container
             docker stop api-server || true
             docker rm api-server || true
             
-            # Run new container
+            # Run new container with SHA-tagged image
             docker run -d \
               --name api-server \
               --restart always \
               -p 8000:8000 \
+              --network sitesage-net \
               --env-file .env \
-              ghcr.io/${{ env.IMAGE_NAME }}:latest
+              ghcr.io/${{ env.IMAGE_NAME }}:${{ github.sha }}
             
-            # Cleanup space
-            docker image prune -f
+            # Cleanup old images (keep last 3)
+            docker images ghcr.io/${{ env.IMAGE_NAME }} --format "{{.ID}}" | tail -n +4 | xargs -r docker rmi -f || true

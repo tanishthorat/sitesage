@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings
 from typing import Optional
+import os
 
 class Settings(BaseSettings):
     """Application settings with environment variable support"""
@@ -12,7 +13,7 @@ class Settings(BaseSettings):
     # API
     API_V1_PREFIX: str = "/api/v1"
     PROJECT_NAME: str = "SiteSage API"
-    VERSION: str = "1.0.1"
+    VERSION: str = os.getenv("APP_VERSION", "1.0.1")  # Use build-time version if available
     DESCRIPTION: str = "Automated SEO Performance Analyzer"
     
     # CORS

@@ -1,10 +1,20 @@
 FROM python:3.11-slim
 
+# Build arguments for versioning
+ARG VERSION=1.0.1
+ARG BUILD_DATE
+ARG GIT_COMMIT
+
 # 1. Stop the "debconf" errors (Tells Linux "I am a robot, don't ask me questions")
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 2. Stop the "pip root" warning (Tells pip "I know I am root, it's okay")
 ENV PIP_ROOT_USER_ACTION=ignore
+
+# Set version environment variables
+ENV APP_VERSION=${VERSION}
+ENV BUILD_DATE=${BUILD_DATE}
+ENV GIT_COMMIT=${GIT_COMMIT}
 
 WORKDIR /app
 
