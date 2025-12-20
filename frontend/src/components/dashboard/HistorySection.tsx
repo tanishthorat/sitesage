@@ -16,10 +16,6 @@ export default function HistorySection({ history, selectedReport, onSelectReport
   const [showLeftArrow, setShowLeftArrow] = useState(false)
   const [showRightArrow, setShowRightArrow] = useState(false)
 
-  if (!history || history.length === 0) {
-    return null
-  }
-
   const formatTabDate = (dateString: string) => {
     const date = new Date(dateString)
     const today = new Date()
@@ -73,6 +69,10 @@ export default function HistorySection({ history, selectedReport, onSelectReport
         behavior: 'smooth'
       })
     }
+  }
+
+  if (!history || history.length === 0) {
+    return null
   }
 
   return (

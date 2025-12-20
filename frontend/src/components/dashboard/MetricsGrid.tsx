@@ -1,7 +1,6 @@
 // components/dashboard/MetricsGrid.tsx
 "use client";
 
-import SEOScoreCard from "./GaugeCard";
 import LoadTimeCard from "./LoadTimeCard";
 import ContentMetricsCard from "./ContentMetricsCard";
 import LighthouseChart from "./LighthouseChart";
@@ -11,9 +10,17 @@ import AIInsightsCard from "./AIInsightsCard";
 import { Report } from "@/types/api";
 import GaugeCard from "./GaugeCard";
 
+interface TrendsData {
+  performance?: number
+  accessibility?: number
+  seo?: number
+  bestPractices?: number
+  load_time?: number
+}
+
 interface MetricsGridProps {
   report: Report | null;
-  trends: any;
+  trends: TrendsData | null;
   history: Report[];
 }
 
@@ -83,7 +90,6 @@ export default function MetricsGrid({
           h1Count={report.h1_count}
           h2Count={report.h2_count}
           imageCount={report.image_count}
-          missingAlt={report.missing_alt_count}
         />
       </div>
 
@@ -109,7 +115,7 @@ export default function MetricsGrid({
           <WebsiteHealthCard
             score={report.seo_score}
             performance={report.lighthouse_performance}
-            trend={trends?.seo_score}
+            trend={trends?.seo}
           />
         </div>
       </div>

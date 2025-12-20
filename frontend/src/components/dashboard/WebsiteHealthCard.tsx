@@ -2,12 +2,11 @@
 "use client";
 
 import GaugeCard from "./GaugeCard";
-import SEOScoreCard from "./GaugeCard";
 import { IconArrowUp, IconArrowDown } from "@tabler/icons-react";
 
 interface WebsiteHealthCardProps {
   score: number;
-  performance: number;
+  performance: number | null;
   trend?: number;
 }
 
@@ -17,7 +16,9 @@ export default function WebsiteHealthCard({
   trend,
 }: WebsiteHealthCardProps) {
   // Calculate overall health (weighted average)
-  const healthScore = Math.round(score * 0.6 + performance * 0.4);
+  const healthScore = performance !== null 
+    ? Math.round(score * 0.6 + performance * 0.4)
+    : score;
 
   const getHealthStatus = () => {
     if (healthScore >= 90)

@@ -21,6 +21,7 @@ export interface Report {
   h2_count: number;
   image_count: number;
   missing_alt_count: number;
+  word_count: number;
   load_time: number;
   seo_score: number;
   ai_summary: string | null;
@@ -29,6 +30,10 @@ export interface Report {
   lighthouse_accessibility: number | null;
   lighthouse_seo: number | null;
   lighthouse_best_practices: number | null;
+  robots_txt_exists: boolean;
+  sitemap_exists: boolean;
+  og_tags_present: boolean;
+  schema_present: boolean;
 }
 
 export interface HistoryURL {

@@ -5,7 +5,7 @@ import { useState } from 'react'
 import { IconSparkles, IconChevronDown, IconChevronUp, IconInfoCircle } from '@tabler/icons-react'
 
 interface AIInsightsCardProps {
-  summary: string
+  summary: string | null
   suggestions: string[]
   url: string
 }
@@ -14,7 +14,7 @@ export default function AIInsightsCard({ summary, suggestions, url }: AIInsights
   const [expanded, setExpanded] = useState(true)
 
   return (
-    <div className="bg-gradient-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border border-purple-100 dark:border-purple-800 overflow-hidden">
+    <div className="bg-linear-to-br from-purple-50 to-blue-50 dark:from-purple-900/20 dark:to-blue-900/20 rounded-xl border border-purple-100 dark:border-purple-800 overflow-hidden">
       <div className="p-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">

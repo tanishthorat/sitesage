@@ -5,12 +5,20 @@ import { useEffect, useRef } from 'react'
 import * as echarts from 'echarts'
 import { IconCircleCheck, IconCircleX } from '@tabler/icons-react'
 
+interface HistoryItem {
+  created_at: string
+  lighthouse_performance: number | null
+  lighthouse_accessibility: number | null
+  lighthouse_seo: number | null
+  lighthouse_best_practices: number | null
+}
+
 interface LighthouseChartProps {
-  performance: number
-  accessibility: number
-  seo: number
-  bestPractices: number
-  history: any[]
+  performance: number | null
+  accessibility: number | null
+  seo: number | null
+  bestPractices: number | null
+  history: HistoryItem[]
   robotsTxt: boolean
   sitemap: boolean
   ogTags: boolean
@@ -267,7 +275,7 @@ export default function LighthouseChart({
               className="text-3xl font-bold mb-1"
               style={{ color: item.color }}
             >
-              {Math.round(item.value)}
+              {item.value !== null ? Math.round(item.value) : '—'}
             </div>
             <div className="text-xs text-gray-500 dark:text-gray-400">{item.label}</div>
           </div>

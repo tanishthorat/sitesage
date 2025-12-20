@@ -110,25 +110,11 @@ export default function Sidebar({
       description: "Manage your content",
     },
     {
-      id: "audit",
-      label: "Website Audit",
-      icon: IconSearch,
-      path: "/dashboard/audit",
-      description: "Audit your website",
-    },
-    {
       id: "optimization",
       label: "Optimization Ideas",
       icon: IconBulb,
       path: "/dashboard/optimization",
       description: "Get optimization tips",
-    },
-    {
-      id: "competitor",
-      label: "Competitor Analysis",
-      icon: IconChartLine,
-      path: "/dashboard/competitor",
-      description: "Analyze competitors",
     },
     {
       id: "keywords",
@@ -396,7 +382,11 @@ export default function Sidebar({
               </Button>
             </DropdownTrigger>
             <DropdownMenu className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
-              <DropdownItem key="user-info" isReadOnly className="py-2 px-2 mb-1 cursor-default">
+              <DropdownItem
+                key="user-info"
+                isReadOnly
+                className="py-2 px-2 mb-1 cursor-default"
+              >
                 <div className="flex items-center gap-3">
                   <Avatar
                     name={getUserInitials()}
@@ -486,7 +476,11 @@ export default function Sidebar({
                 />
               </DropdownTrigger>
               <DropdownMenu className="bg-white dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-700">
-                <DropdownItem key="user-info-mobile" isReadOnly className="py-2 px-2 mb-1 cursor-default">
+                <DropdownItem
+                  key="user-info-mobile"
+                  isReadOnly
+                  className="py-2 px-2 mb-1 cursor-default"
+                >
                   <div className="font-semibold text-sm text-neutral-900 dark:text-white">
                     {getUserDisplayName()}
                   </div>

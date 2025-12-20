@@ -2,13 +2,13 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDashboard } from "@/contexts/DashboardContext";
 import { useRouter } from "next/navigation";
 import api, { apiEndpoints } from "@/lib/api";
 import { Report } from "@/types/api";
 import MetricsGrid from "@/components/dashboard/MetricsGrid";
 import HistorySection from "@/components/dashboard/HistorySection";
 import { IconRefresh, IconPlus } from "@tabler/icons-react";
-import { useDashboard } from "./layout";
 import { Button } from "@heroui/react";
 
 export default function DashboardPage() {

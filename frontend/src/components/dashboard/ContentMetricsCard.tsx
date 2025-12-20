@@ -55,7 +55,6 @@ export default function ContentMetricsCard({
   period = "This month",
   className = "",
   trends,
-  onMetricClick,
 }: ContentMetricsCardProps) {
   const getTrendIcon = (trend?: number) => {
     if (!trend) return null;
