@@ -7,6 +7,7 @@ import { Button } from '@heroui/react';
 import api, { apiEndpoints } from '@/lib/api';
 import { Report } from '@/types/api';
 import AppNavbar from '@/components/Navbar';
+import BarChart from '@/components/charts/BarChart';
 import { IconDownload, IconLock } from '@tabler/icons-react';
 
 interface ReportPageProps {
@@ -265,6 +266,24 @@ export default function ReportPage({ params }: ReportPageProps) {
               {report.missing_alt_count}
             </p>
           </div>
+        </div>
+
+        {/* SEO Metrics Chart */}
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            SEO Metrics Overview
+          </h3>
+          <BarChart
+            data={[
+              report.h1_count,
+              report.h2_count,
+              report.image_count,
+              report.missing_alt_count
+            ]}
+            categories={['H1 Tags', 'H2 Tags', 'Images', 'Missing Alt Tags']}
+            title=""
+            loading={loading}
+          />
         </div>
 
         {/* AI Summary */}
