@@ -1,0 +1,65 @@
+name: Deploy Backend to EC2
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - "backend/**"               # Only runs if backend changes
+      - ".github/workflows/deploy.yml"
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}-backend
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write  # <--- Essential for pushing the image
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Docker Image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: true
+          tags: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
+          script: |
+            # Login to GHCR inside EC2
+            echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull new image
+            docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
+            
+            # Stop old container
+            docker stop api-server || true
+            docker rm api-server || true
+            
+            # Run new container
+            docker run -d \
+              --name api-server \
+              --restart always \
+              -p 8000:8000 \
+              --env-file .env \
+              ghcr.io/${{ env.IMAGE_NAME }}:latest
+            
+            # Cleanup space
+            docker image prune -f

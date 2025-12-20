@@ -9,6 +9,7 @@ from app.main import app
 from app.database import Base, get_db
 from app import models
 from app.firebase_auth import get_current_user
+from app.core.dependencies import verify_api_key
 
 # Test database setup
 SQLALCHEMY_DATABASE_URL = "sqlite:///:memory:"
@@ -47,8 +48,13 @@ def override_get_current_user():
         db.refresh(user)
     return user
 
+def override_verify_api_key():
+    """Mock internal API key verification for testing"""
+    return True
+
 app.dependency_overrides[get_db] = override_get_db
 app.dependency_overrides[get_current_user] = override_get_current_user
+app.dependency_overrides[verify_api_key] = override_verify_api_key
 
 client = TestClient(app)
 
