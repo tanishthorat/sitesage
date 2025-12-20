@@ -56,9 +56,14 @@ export default function DashboardPage() {
           setRecentScans(reports.slice(0, 10));
         }
       }
-    } catch (err: any) {
-      console.error("Error fetching dashboard data:", err);
-      setError(err.response?.data?.error || "Failed to load dashboard data");
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Error fetching dashboard data:", err);
+        setError(err.message || "Failed to load dashboard data");
+      } else {
+        console.error("Unexpected error:", err);
+        setError("Failed to load dashboard data");
+      }
     } finally {
       setLoading(false);
       hasLoadedRef.current = true;
@@ -123,8 +128,9 @@ export default function DashboardPage() {
                   : "Loading..."}
               </p>
             </div>
-            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              <Button
+            <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">|
+              {/* for pdf export  */}
+              {/* <Button
                 onClick={handleRefresh}
                 disabled={refreshing}
                 className="flex-1 sm:flex-none px-3 sm:px-4 py-2 sm:py-2.5 border border-neutral-300 dark:border-neutral-600 rounded-lg text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors flex items-center justify-center gap-2"
@@ -134,7 +140,7 @@ export default function DashboardPage() {
                 />
                 <span className="hidden sm:inline">Full Report</span>
                 <span className="sm:hidden">Report</span>
-              </Button>
+              </Button> */}
               <Button
                 onPress={handleNewAnalysis}
                 color="primary"
