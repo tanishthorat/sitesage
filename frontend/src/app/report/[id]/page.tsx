@@ -235,18 +235,6 @@ export default function ReportPage({ params }: ReportPageProps) {
           loading={loading}
           lighthouseLoading={lighthouseLoading}
         />
-
-        {/* AI Insights Card */}
-        {(report.ai_summary ||
-          report.ai_suggestions?.some((s) => s && s.trim().length > 0)) && (
-          <div className="mt-8">
-            <AIInsightsCard
-              summary={report.ai_summary}
-              suggestions={report.ai_suggestions || []}
-              url={report.url}
-            />
-          </div>
-        )}
       </main>
     </div>
   );
