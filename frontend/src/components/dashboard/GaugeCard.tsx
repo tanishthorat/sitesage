@@ -6,7 +6,7 @@ import * as echarts from "echarts/core";
 import { GaugeChart } from "echarts/charts";
 import { CanvasRenderer } from "echarts/renderers";
 import { TooltipComponent } from "echarts/components";
-import { Card, CardBody } from "@heroui/react";
+import { Card, CardBody, Skeleton } from "@heroui/react";
 
 // Register only required ECharts components for optimal bundle size
 echarts.use([GaugeChart, CanvasRenderer, TooltipComponent]);
@@ -67,6 +67,8 @@ export interface GaugeCardProps {
   footer?: ReactNode;
   /** Show gradient overlay */
   showGradientOverlay?: boolean;
+  /** Show loading skeleton */
+  loading?: boolean;
 }
 
 export default function GaugeCard({
@@ -86,8 +88,7 @@ export default function GaugeCard({
   subtitleColor = "text-neutral-500",
   gaugeConfig,
   footer,
-  showGradientOverlay = true,
-}: GaugeCardProps) {
+  showGradientOverlay = true,  loading = false,}: GaugeCardProps) {
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
@@ -209,17 +210,30 @@ export default function GaugeCard({
         <div className="space-y-4">
           {/* Header */}
           <div className="space-y-1">
-            <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
-            <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
+            {loading ? (
+              <>
+                <Skeleton className="h-4 w-20 rounded" />
+                <Skeleton className="h-3 w-16 rounded" />
+              </>
+            ) : (
+              <>
+                <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
+                <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
+              </>
+            )}
           </div>
 
           {/* Gauge Chart Container */}
           <div className="relative mx-auto w-full">
-            <div ref={chartRef} className={`w-full ${chartHeight}`} />
+            {loading ? (
+              <Skeleton className={`w-full ${chartHeight} rounded-lg`} />
+            ) : (
+              <div ref={chartRef} className={`w-full ${chartHeight}`} />
+            )}
           </div>
 
           {/* Optional Footer */}
-          {footer && <div className="mt-4">{footer}</div>}
+          {!loading && footer && <div className="mt-4">{footer}</div>}
         </div>
       </CardBody>
     </Card>

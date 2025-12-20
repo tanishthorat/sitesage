@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, ReactNode, useState } from 'react'
 import * as echarts from 'echarts'
-import { Card, CardBody, Progress, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button } from '@heroui/react'
+import { Card, CardBody, Progress, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Button, Skeleton } from '@heroui/react'
 import { IconChevronDown } from '@tabler/icons-react'
 
 interface HistoryItem {
@@ -38,6 +38,7 @@ interface LighthouseChartProps {
   subtitleColor?: string
   footer?: ReactNode
   showGradientOverlay?: boolean
+  loading?: boolean
 }
 
 const lighthouseMetrics = [
@@ -71,6 +72,7 @@ export default function LighthouseChart({
   subtitleColor = "text-neutral-500",
   footer,
   showGradientOverlay = true,
+  loading = false,
 }: LighthouseChartProps) {
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstanceRef = useRef<echarts.ECharts | null>(null)
@@ -239,79 +241,103 @@ export default function LighthouseChart({
         <div className="space-y-4">
           {/* Header with Dropdown */}
           <div className="flex items-start justify-between">
-            <div className="space-y-1">
-              <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
-              <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
-            </div>
+            {loading ? (
+              <>
+                <div className="space-y-1">
+                  <Skeleton className="h-6 w-32 rounded" />
+                  <Skeleton className="h-3 w-24 rounded" />
+                </div>
+                <Skeleton className="h-8 w-20 rounded" />
+              </>
+            ) : (
+              <>
+                <div className="space-y-1">
+                  <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
+                  <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
+                </div>
 
-            {/* Filter Dropdown */}
-            <Dropdown>
-              <DropdownTrigger>
-                <Button
-                  isIconOnly
-                  className="bg-neutral-800/50 hover:bg-neutral-700/50 border border-neutral-700/50 text-neutral-300"
-                  size="sm"
-                >
-                  <IconChevronDown size={18} />
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                aria-label="Filter metrics"
-                selectedKeys={[filterMode]}
-                onSelectionChange={(keys) => {
-                  const selected = Array.from(keys)[0] as string
-                  setFilterMode(selected as 'latest' | 'all')
-                }}
-                className="bg-neutral-900 border border-neutral-800"
-              >
-                <DropdownItem
-                  key="latest"
-                  className={`${filterMode === 'latest' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
-                >
-                  Latest Metric Only
-                </DropdownItem>
-                <DropdownItem
-                  key="all"
-                  className={`${filterMode === 'all' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
-                >
-                  View History (7 Days)
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
+                {/* Filter Dropdown */}
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      isIconOnly
+                      className="bg-neutral-800/50 hover:bg-neutral-700/50 border border-neutral-700/50 text-neutral-300"
+                      size="sm"
+                    >
+                      <IconChevronDown size={18} />
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label="Filter metrics"
+                    selectedKeys={[filterMode]}
+                    onSelectionChange={(keys) => {
+                      const selected = Array.from(keys)[0] as string
+                      setFilterMode(selected as 'latest' | 'all')
+                    }}
+                    className="bg-neutral-900 border border-neutral-800"
+                  >
+                    <DropdownItem
+                      key="latest"
+                      className={`${filterMode === 'latest' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
+                    >
+                      Latest Metric Only
+                    </DropdownItem>
+                    <DropdownItem
+                      key="all"
+                      className={`${filterMode === 'all' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
+                    >
+                      View History (7 Days)
+                    </DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+              </>
+            )}
           </div>
 
           {/* Chart */}
           <div className="relative mx-auto w-full">
-            <div ref={chartRef} className={`w-full ${chartHeight}`} />
+            {loading ? (
+              <Skeleton className={`w-full ${chartHeight} rounded-lg`} />
+            ) : (
+              <div ref={chartRef} className={`w-full ${chartHeight}`} />
+            )}
           </div>
 
           {/* Scores Display */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-            {lighthouseMetrics.map((metric) => {
-              const value = scores[metric.key as keyof typeof scores]
-              return (
-                <div key={metric.label} className="space-y-2">
-                  <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-bold" style={{ color: metric.color }}>
-                      {value !== null ? Math.round(value) : '—'}
-                    </span>
-                    <span className="text-xs text-neutral-400">/100</span>
+          {loading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-16 rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+              {lighthouseMetrics.map((metric) => {
+                const value = scores[metric.key as keyof typeof scores]
+                return (
+                  <div key={metric.label} className="space-y-2">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-2xl font-bold" style={{ color: metric.color }}>
+                        {value !== null ? Math.round(value) : '—'}
+                      </span>
+                      <span className="text-xs text-neutral-400">/100</span>
+                    </div>
+                    <p className="text-xs text-neutral-300">{metric.label}</p>
+                    {value !== null && (
+                      <Progress
+                        value={value}
+                        className="h-1.5"
+                        color={metric.color === '#8b5cf6' ? 'secondary' : metric.color === '#10b981' ? 'success' : metric.color === '#3b82f6' ? 'primary' : 'warning'}
+                      />
+                    )}
                   </div>
-                  <p className="text-xs text-neutral-300">{metric.label}</p>
-                  {value !== null && (
-                    <Progress
-                      value={value}
-                      className="h-1.5"
-                      color={metric.color === '#8b5cf6' ? 'secondary' : metric.color === '#10b981' ? 'success' : metric.color === '#3b82f6' ? 'primary' : 'warning'}
-                    />
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          )}
 
           {/* Optional Footer */}
-          {footer && <div className="mt-4">{footer}</div>}
+          {!loading && footer && <div className="mt-4">{footer}</div>}
         </div>
       </CardBody>
     </Card>

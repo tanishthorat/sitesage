@@ -3,7 +3,7 @@
 
 import { useEffect, useRef, ReactNode } from 'react'
 import * as echarts from 'echarts'
-import { Card, CardBody } from '@heroui/react'
+import { Card, CardBody, Skeleton } from '@heroui/react'
 import { IconArrowUp, IconArrowDown, IconCheck, IconAlertTriangle, IconX } from '@tabler/icons-react'
 
 interface LoadTimeCardProps {
@@ -24,6 +24,7 @@ interface LoadTimeCardProps {
   subtitleColor?: string
   footer?: ReactNode
   showGradientOverlay?: boolean
+  loading?: boolean
 }
 
 export default function LoadTimeCard({
@@ -44,6 +45,7 @@ export default function LoadTimeCard({
   subtitleColor = "text-neutral-500",
   footer,
   showGradientOverlay = true,
+  loading = false,
 }: LoadTimeCardProps) {
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstanceRef = useRef<echarts.ECharts | null>(null)
@@ -145,11 +147,28 @@ export default function LoadTimeCard({
         <div className="space-y-4">
           {/* Header */}
           <div className="space-y-1">
-            <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
-            <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
+            {loading ? (
+              <>
+                <Skeleton className="h-4 w-20 rounded" />
+                <Skeleton className="h-3 w-16 rounded" />
+              </>
+            ) : (
+              <>
+                <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
+                <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
+              </>
+            )}
           </div>
 
           {/* Load Time Value and Trend */}
+          {loading ? (
+            <>
+              <Skeleton className="h-12 w-24 rounded" />
+              <Skeleton className="h-8 w-40 rounded" />
+              <Skeleton className={`w-full ${chartHeight} rounded-lg`} />
+            </>
+          ) : (
+            <>
           <div className="space-y-2">
             <div className="flex items-baseline gap-3">
               <span className={`text-4xl font-bold ${statusColor.text}`}>
@@ -198,7 +217,9 @@ export default function LoadTimeCard({
           </div>
 
           {/* Optional Footer */}
-          {footer && <div className="mt-4">{footer}</div>}
+          {!loading && footer && <div className="mt-4">{footer}</div>}
+            </>
+          )}
         </div>
       </CardBody>
     </Card>

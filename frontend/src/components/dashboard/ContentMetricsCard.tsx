@@ -12,7 +12,7 @@ import {
   IconMinus,
   IconAlertTriangle,
 } from "@tabler/icons-react";
-import { Accordion, AccordionItem, Chip, ScrollShadow } from "@heroui/react";
+import { Accordion, AccordionItem, Chip, ScrollShadow, Skeleton } from "@heroui/react";
 import {
   getWordCountReview,
   getH1Review,
@@ -45,6 +45,8 @@ export interface ContentMetricsCardProps {
   };
   /** Optional click handler for metric items */
   onMetricClick?: (metricId: string) => void;
+  /** Show loading skeleton */
+  loading?: boolean;
 }
 
 /**
@@ -59,6 +61,7 @@ export default function ContentMetricsCard({
   period = "This month",
   className = "",
   trends,
+  loading = false,
 }: ContentMetricsCardProps) {
   const getTrendIcon = (trend?: number) => {
     if (!trend) return null;
@@ -170,20 +173,36 @@ export default function ContentMetricsCard({
       <div className="relative space-y-5">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-primary-400">
-            Content Metrics
-          </h3>
+          {loading ? (
+            <>
+              <Skeleton className="h-6 w-32 rounded" />
+              <Skeleton className="h-6 w-24 rounded" />
+            </>
+          ) : (
+            <>
+              <h3 className="text-lg font-semibold text-primary-400">
+                Content Metrics
+              </h3>
 
-          {/* Period Dropdown */}
-          <button
-            type="button"
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-neutral-400 transition-colors hover:bg-neutral-800/50 hover:text-neutral-300"
-          >
-            {period}
-          </button>
+              {/* Period Dropdown */}
+              <button
+                type="button"
+                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-neutral-400 transition-colors hover:bg-neutral-800/50 hover:text-neutral-300"
+              >
+                {period}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Metrics List with Accordion */}
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3, 4, 5].map((i) => (
+              <Skeleton key={i} className="h-16 rounded-lg" />
+            ))}
+          </div>
+        ) : (
         <ScrollShadow visibility="none" hideScrollBar className="max-h-68">
           <Accordion
             variant="splitted"
@@ -276,6 +295,7 @@ export default function ContentMetricsCard({
             })}
           </Accordion>
         </ScrollShadow>
+        )}
       </div>
     </div>
   );

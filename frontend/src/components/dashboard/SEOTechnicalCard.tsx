@@ -1,7 +1,7 @@
 // components/dashboard/cards/SEOTechnicalCard.tsx
 "use client";
 
-import { Card, CardBody, Tooltip, Chip } from "@heroui/react";
+import { Card, CardBody, Tooltip, Chip, Skeleton } from "@heroui/react";
 import { IconCheck, IconX, IconAlertCircle } from "@tabler/icons-react";
 
 interface SEOMetric {
@@ -18,6 +18,7 @@ interface SEOTechnicalCardProps {
   ogTags: boolean;
   className?: string;
   keywords?: string[];
+  loading?: boolean;
 }
 
 export default function SEOTechnicalCard({
@@ -27,6 +28,7 @@ export default function SEOTechnicalCard({
   ogTags,
   className = "",
   keywords = [],
+  loading = false,
 }: SEOTechnicalCardProps) {
   const metrics: SEOMetric[] = [
     {
@@ -72,24 +74,44 @@ export default function SEOTechnicalCard({
         <div className="space-y-4 flex-1 flex flex-col">
           {/* Header */}
           <div className="space-y-1">
-            <p className="text-2xl font-bold text-primary-400">
-              Technical SEO
-            </p>
-            <p className="text-xs text-neutral-500">
-              {presentCount} of {metrics.length} configured
-            </p>
+            {loading ? (
+              <>
+                <Skeleton className="h-6 w-32 rounded" />
+                <Skeleton className="h-3 w-20 rounded" />
+              </>
+            ) : (
+              <>
+                <p className="text-2xl font-bold text-primary-400">
+                  Technical SEO
+                </p>
+                <p className="text-xs text-neutral-500">
+                  {presentCount} of {metrics.length} configured
+                </p>
+              </>
+            )}
           </div>
 
           {/* Progress bar */}
-          <div className="h-2 w-full rounded-full bg-neutral-700/50 overflow-hidden">
-            <div
-              className="h-full bg-linear-to-r from-primary-400 to-primary-600 transition-all duration-500"
-              style={{ width: `${(presentCount / metrics.length) * 100}%` }}
-            />
-          </div>
+          {loading ? (
+            <Skeleton className="h-2 w-full rounded-full" />
+          ) : (
+            <div className="h-2 w-full rounded-full bg-neutral-700/50 overflow-hidden">
+              <div
+                className="h-full bg-linear-to-r from-primary-400 to-primary-600 transition-all duration-500"
+                style={{ width: `${(presentCount / metrics.length) * 100}%` }}
+              />
+            </div>
+          )}
 
           {/* Metrics List */}
-          <div className="space-y-3 pt-2 flex-1 overflow-y-auto">
+          {loading ? (
+            <div className="space-y-3 pt-2">
+              {[1, 2, 3, 4].map((i) => (
+                <Skeleton key={i} className="h-12 rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <div className="space-y-3 pt-2 flex-1 overflow-y-auto">
             {metrics.map((metric) => (
               <Tooltip
                 key={metric.label}
@@ -169,7 +191,8 @@ export default function SEOTechnicalCard({
                 </div>
               </Tooltip>
             ))}
-          </div>
+            </div>
+          )}
 
           {/* Footer suggestion */}
           {presentCount < metrics.length && (

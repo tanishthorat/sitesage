@@ -22,12 +22,16 @@ interface MetricsGridProps {
   report: Report | null;
   trends: TrendsData | null;
   history: Report[];
+  loading?: boolean;
+  lighthouseLoading?: boolean;
 }
 
 export default function MetricsGrid({
   report,
   trends,
   history,
+  loading = false,
+  lighthouseLoading = false,
 }: MetricsGridProps) {
   if (!report) {
     return (
@@ -74,6 +78,7 @@ export default function MetricsGrid({
           label="SEO Score"
           subtitle={isLatestReport ? "Latest Result" : "Previous Result"}
           score={report.seo_score}
+          loading={loading}
           gaugeConfig={{
             progressWidth: 14,
             scoreFontSize: 48,
@@ -85,6 +90,7 @@ export default function MetricsGrid({
           subtitle={isLatestReport ? "Latest Result" : "Previous Result"}
           loadTime={report.load_time}
           trend={trends?.load_time}
+          loading={loading}
           history={history
             .map((h) => h.load_time)
             .filter(Boolean)
@@ -98,6 +104,7 @@ export default function MetricsGrid({
           h2Count={report.h2_count}
           imageCount={report.image_count}
           missingAltCount={report.missing_alt_count}
+          loading={loading}
         />
       </div>
 
@@ -115,6 +122,7 @@ export default function MetricsGrid({
             sitemap={report.sitemap_exists}
             ogTags={report.og_tags_present}
             schema={report.schema_present}
+            loading={lighthouseLoading}
           />
         </div>
 
@@ -126,6 +134,7 @@ export default function MetricsGrid({
             schemaMarkup={report.schema_present}
             ogTags={report.og_tags_present}
             keywords={report.top_keywords || []}
+            loading={loading}
           />
         </div>
       </div>
