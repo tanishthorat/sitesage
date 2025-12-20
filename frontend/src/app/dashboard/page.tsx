@@ -102,6 +102,31 @@ export default function DashboardPage() {
     setSelectedReport(report);
   };
 
+  const handleAnalyzeAgain = async () => {
+    if (!selectedProject) return;
+    
+    try {
+      setRefreshing(true);
+      // Make a new analysis request for the selected project URL
+      await api.post(apiEndpoints.analyze, {
+        url: selectedProject,
+      });
+      
+      // Refresh the dashboard data to get the new report
+      await fetchDashboardData(selectedProject);
+    } catch (err: unknown) {
+      if (err instanceof Error) {
+        console.error("Error analyzing URL:", err);
+        setError(err.message || "Failed to analyze URL");
+      } else {
+        console.error("Unexpected error:", err);
+        setError("Failed to analyze URL");
+      }
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
   const getProjectDisplayName = (url: string) => {
     try {
       const urlObj = new URL(url);
@@ -116,7 +141,7 @@ export default function DashboardPage() {
       <div className="bg-white dark:bg-neutral-800 m-3 lg:m-6 rounded-xl shadow-sm ">
         <div className="p-4 lg:p-8">
           {/* Header */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-6 sm:mb-8 gap-4">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mb-3 sm:mb-2 gap-4">
             <div>
               <h1 className="text-2xl sm:text-3xl font-semibold text-neutral-900 dark:text-white">
                 SEO Dashboard
@@ -181,6 +206,7 @@ export default function DashboardPage() {
                 history={recentScans}
                 selectedReport={selectedReport}
                 onSelectReport={handleSelectReport}
+                onAnalyzeAgain={handleAnalyzeAgain}
               />
 
               {/* Metrics Grid - Bento Layout */}

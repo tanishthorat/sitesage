@@ -1,27 +1,73 @@
 // components/dashboard/cards/LoadTimeCard.tsx
 "use client"
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, ReactNode } from 'react'
 import * as echarts from 'echarts'
-import { IconArrowUp, IconArrowDown } from '@tabler/icons-react'
+import { Card, CardBody } from '@heroui/react'
+import { IconArrowUp, IconArrowDown, IconCheck, IconAlertTriangle, IconX } from '@tabler/icons-react'
 
 interface LoadTimeCardProps {
   loadTime: number
   trend?: number
   history?: number[]
+  label?: string
+  subtitle?: string
+  className?: string
+  chartHeight?: string
+  cardPadding?: string
+  cardBackground?: string
+  cardBorder?: string
+  cardRadius?: string
+  labelSize?: string
+  subtitleSize?: string
+  labelColor?: string
+  subtitleColor?: string
+  footer?: ReactNode
+  showGradientOverlay?: boolean
 }
 
-export default function LoadTimeCard({ loadTime, trend, history = [] }: LoadTimeCardProps) {
+export default function LoadTimeCard({
+  loadTime,
+  trend,
+  history = [],
+  label = "Page Load Time",
+  subtitle = "Latest Result",
+  className = "",
+  chartHeight = "h-48",
+  cardPadding = "px-6 py-6",
+  cardBackground = "bg-neutral-900/95",
+  cardBorder = "border-neutral-800/50",
+  cardRadius = "rounded-3xl",
+  labelSize = "text-2xl",
+  subtitleSize = "text-xs",
+  labelColor = "text-primary-400",
+  subtitleColor = "text-neutral-500",
+  footer,
+  showGradientOverlay = true,
+}: LoadTimeCardProps) {
   const chartRef = useRef<HTMLDivElement>(null)
+  const chartInstanceRef = useRef<echarts.ECharts | null>(null)
+
+  // Determine color based on load time
+  const getStatusColor = () => {
+    if (loadTime < 1) return { text: 'text-emerald-400', value: '#10b981' }
+    if (loadTime < 2) return { text: 'text-amber-400', value: '#f59e0b' }
+    return { text: 'text-red-400', value: '#ef4444' }
+  }
+
+  const statusColor = getStatusColor()
 
   useEffect(() => {
     if (!chartRef.current) return
 
-    const chart = echarts.init(chartRef.current)
+    const instance = echarts.init(chartRef.current, undefined, {
+      renderer: 'canvas'
+    })
+    chartInstanceRef.current = instance
 
     // Prepare data - use history or generate sample data
-    const data = history.length > 0 
-      ? history.slice(0, 7).reverse() 
+    const data = history.length > 0
+      ? history.slice(0, 7).reverse()
       : [0.9, 0.85, 0.82, 0.78, 0.80, 0.76, loadTime]
 
     const option = {
@@ -47,7 +93,7 @@ export default function LoadTimeCard({ loadTime, trend, history = [] }: LoadTime
           smooth: true,
           symbol: 'none',
           lineStyle: {
-            color: loadTime < 1 ? '#10b981' : loadTime < 2 ? '#f59e0b' : '#ef4444',
+            color: statusColor.value,
             width: 2
           },
           areaStyle: {
@@ -60,19 +106,11 @@ export default function LoadTimeCard({ loadTime, trend, history = [] }: LoadTime
               colorStops: [
                 {
                   offset: 0,
-                  color: loadTime < 1 
-                    ? 'rgba(16, 185, 129, 0.3)' 
-                    : loadTime < 2 
-                    ? 'rgba(245, 158, 11, 0.3)'
-                    : 'rgba(239, 68, 68, 0.3)'
+                  color: statusColor.value + '40'
                 },
                 {
                   offset: 1,
-                  color: loadTime < 1 
-                    ? 'rgba(16, 185, 129, 0.05)' 
-                    : loadTime < 2 
-                    ? 'rgba(245, 158, 11, 0.05)'
-                    : 'rgba(239, 68, 68, 0.05)'
+                  color: statusColor.value + '08'
                 }
               ]
             }
@@ -82,61 +120,88 @@ export default function LoadTimeCard({ loadTime, trend, history = [] }: LoadTime
       ]
     }
 
-    chart.setOption(option)
+    instance.setOption(option)
 
-    const handleResize = () => chart.resize()
+    const handleResize = () => instance?.resize()
     window.addEventListener('resize', handleResize)
 
     return () => {
       window.removeEventListener('resize', handleResize)
-      chart.dispose()
+      instance?.dispose()
+      chartInstanceRef.current = null
     }
-  }, [loadTime, history])
-
-  const getStatus = () => {
-    if (loadTime < 1) return { text: 'Fast', color: 'text-emerald-500' }
-    if (loadTime < 2) return { text: 'Average', color: 'text-amber-500' }
-    return { text: 'Slow', color: 'text-red-500' }
-  }
-
-  const status = getStatus()
-
-  // For load time, negative trend is good (faster)
-  const trendColor = !trend ? 'text-gray-500' : trend < 0 ? 'text-emerald-500' : 'text-red-500'
+  }, [loadTime, history, statusColor])
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Load Time</h3>
-        <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-          </svg>
-        </button>
-      </div>
+    <Card
+      className={`relative border shadow-2xl backdrop-blur-sm ${cardBackground} ${cardBorder} ${cardRadius} ${className}`}
+    >
+      {/* Gradient overlay */}
+      {showGradientOverlay && (
+        <div className="pointer-events-none absolute inset-0 rounded-3xl bg-linear-to-br from-neutral-800/30 via-transparent to-transparent" />
+      )}
 
-      <div className="mb-2">
-        <div className="flex items-baseline gap-3">
-          <span className="text-4xl font-bold text-gray-900 dark:text-white">
-            {loadTime?.toFixed(2)}s
-          </span>
-          {trend !== undefined && trend !== 0 && (
-            <span className={`flex items-center text-sm font-medium ${trendColor}`}>
-              {trend < 0 ? (
-                <IconArrowDown className="w-4 h-4 mr-1" />
-              ) : (
-                <IconArrowUp className="w-4 h-4 mr-1" />
+      <CardBody className={`relative ${cardPadding}`}>
+        <div className="space-y-4">
+          {/* Header */}
+          <div className="space-y-1">
+            <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
+            <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
+          </div>
+
+          {/* Load Time Value and Trend */}
+          <div className="space-y-2">
+            <div className="flex items-baseline gap-3">
+              <span className={`text-4xl font-bold ${statusColor.text}`}>
+                {loadTime?.toFixed(2)}s
+              </span>
+              {trend !== undefined && trend !== 0 && (
+                <div
+                  className={`flex items-center gap-1 text-sm font-medium ${
+                    trend < 0 ? 'text-emerald-400' : 'text-red-400'
+                  }`}
+                >
+                  {trend < 0 ? (
+                    <IconArrowDown className="w-4 h-4" />
+                  ) : (
+                    <IconArrowUp className="w-4 h-4" />
+                  )}
+                  <span>{Math.abs(trend).toFixed(2)}s</span>
+                </div>
               )}
-              {Math.abs(trend).toFixed(2)}s
-            </span>
-          )}
-        </div>
-        <p className={`text-sm font-medium mt-1 ${status.color}`}>
-          {status.text}
-        </p>
-      </div>
+            </div>
 
-      <div ref={chartRef} className="h-20 mt-4" />
-    </div>
+            {/* Status text */}
+            <div className="flex items-center gap-2 text-sm font-medium text-neutral-300">
+              {loadTime < 1 ? (
+                <>
+                  <IconCheck className="w-5 h-5 text-emerald-400" />
+                  <span>Fast - Excellent performance</span>
+                </>
+              ) : loadTime < 2 ? (
+                <>
+                  <IconAlertTriangle className="w-5 h-5 text-amber-400" />
+                  <span>Average - Could be optimized</span>
+                </>
+              ) : (
+                <>
+                  <IconX className="w-5 h-5 text-red-400" />
+                  <span>Slow - Needs optimization</span>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Chart */}
+          <div className="relative mx-auto w-full">
+            <div ref={chartRef} className={`w-full ${chartHeight}`} />
+          </div>
+
+          {/* Optional Footer */}
+          {footer && <div className="mt-4">{footer}</div>}
+        </div>
+      </CardBody>
+    </Card>
   )
 }
+

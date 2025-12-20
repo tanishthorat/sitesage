@@ -34,6 +34,7 @@ export interface Report {
   sitemap_exists: boolean;
   og_tags_present: boolean;
   schema_present: boolean;
+  top_keywords?: string[];
 }
 
 export interface HistoryURL {

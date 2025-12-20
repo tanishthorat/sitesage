@@ -1,20 +1,23 @@
 // components/dashboard/HistorySection.tsx
 "use client"
 
-import { IconChevronLeft, IconChevronRight } from '@tabler/icons-react'
+import { IconChevronLeft, IconChevronRight, IconRefresh } from '@tabler/icons-react'
 import { Report } from '@/types/api'
 import { useRef, useState, useEffect } from 'react'
+import { Button, Tabs, Tab, ScrollShadow } from '@heroui/react'
 
 interface HistorySectionProps {
   history: Report[]
   selectedReport: Report | null
   onSelectReport: (report: Report) => void
+  onAnalyzeAgain?: () => void | Promise<void>
 }
 
-export default function HistorySection({ history, selectedReport, onSelectReport }: HistorySectionProps) {
+export default function HistorySection({ history, selectedReport, onSelectReport, onAnalyzeAgain }: HistorySectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
   const [showLeftArrow, setShowLeftArrow] = useState(false)
   const [showRightArrow, setShowRightArrow] = useState(false)
+  const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   const formatTabDate = (dateString: string) => {
     const date = new Date(dateString)
@@ -71,6 +74,17 @@ export default function HistorySection({ history, selectedReport, onSelectReport
     }
   }
 
+  const handleAnalyzeAgain = async () => {
+    if (onAnalyzeAgain && !isAnalyzing) {
+      setIsAnalyzing(true)
+      try {
+        await onAnalyzeAgain()
+      } finally {
+        setIsAnalyzing(false)
+      }
+    }
+  }
+
   if (!history || history.length === 0) {
     return null
   }
@@ -78,60 +92,52 @@ export default function HistorySection({ history, selectedReport, onSelectReport
   return (
     <div className="mb-6">
       {/* Tabs Container */}
-      <div className="relative">
-        {/* Left Arrow */}
-        {showLeftArrow && (
-          <button
-            onClick={() => scroll('left')}
-            className="absolute left-0 top-0 bottom-0 z-10 bg-gradient-to-r from-white dark:from-neutral-800 to-transparent w-12 flex items-center justify-start pl-2"
+      <div className="relative flex items-center gap-2">
+        {/* Analyze Again Button */}
+        {onAnalyzeAgain && (
+          <Button
+            isIconOnly
+            onPress={handleAnalyzeAgain}
+            isLoading={isAnalyzing}
+            disabled={isAnalyzing}
+            className="shrink-0 bg-primary-500/20 hover:bg-primary-500/30 border border-primary-500/40 hover:border-primary-500/60 text-primary-400 rounded-lg"
+            size="lg"
+            title={isAnalyzing ? 'Analyzing...' : 'Analyze Again'}
           >
-            <div className="bg-white dark:bg-neutral-700 rounded-full p-1 shadow-md">
-              <IconChevronLeft className="w-5 h-5 text-neutral-700 dark:text-neutral-300" />
-            </div>
-          </button>
+            <IconRefresh size={18} className={isAnalyzing ? 'animate-spin' : ''} />
+          </Button>
         )}
 
-        {/* Scrollable Tabs */}
-        <div
-          ref={scrollContainerRef}
-          onScroll={checkScroll}
-          className="flex gap-2 overflow-x-auto scrollbar-hide pb-2"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-        >
-          {history.map((report) => {
-            const isSelected = selectedReport?.id === report.id
-            return (
-              <button
-                key={report.id}
-                onClick={() => onSelectReport(report)}
-                className={`flex-shrink-0 px-4 py-2.5 rounded-lg font-medium text-sm transition-all whitespace-nowrap ${
-                  isSelected
-                    ? 'bg-neutral-900 dark:bg-neutral-700 text-white shadow-md'
-                    : 'bg-neutral-100 dark:bg-neutral-700/50 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600'
-                }`}
-              >
-                <div className="flex flex-col items-start gap-0.5">
-                  <span className="font-semibold">{formatTabDate(report.created_at)}</span>
-                  <span className={`text-xs ${isSelected ? 'text-neutral-300' : 'text-neutral-500 dark:text-neutral-400'}`}>
-                    {formatTime(report.created_at)}
-                  </span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-
-        {/* Right Arrow */}
-        {showRightArrow && (
-          <button
-            onClick={() => scroll('right')}
-            className="absolute right-0 top-0 bottom-0 z-10 bg-gradient-to-l from-white dark:from-neutral-800 to-transparent w-12 flex items-center justify-end pr-2"
+        {/* History Tabs */}
+        <ScrollShadow className="flex-1 w-full [&::-webkit-scrollbar]:hidden [scrollbar-width:none]" hideScrollBar>
+          <Tabs
+            aria-label="History tabs"
+            selectedKey={String(history.findIndex(h => h.id === selectedReport?.id) || 0)}
+            onSelectionChange={(key) => {
+              const index = Number(key)
+              if (history[index]) onSelectReport(history[index])
+            }}
+            classNames={{
+              base: 'w-fit',
+              tabList: 'gap-2 p-0 bg-transparent',
+              tab: 'px-4 py-2.5 h-auto data-[selected=true]:bg-primary-500/20 data-[selected=true]:border data-[selected=true]:border-primary-500/60 data-[selected=true]:text-primary-300 data-[selected=true]:shadow-lg data-[selected=true]:shadow-primary-500/20 bg-neutral-100 dark:bg-neutral-700/50 text-neutral-700 dark:text-neutral-300 hover:bg-neutral-200 dark:hover:bg-neutral-600 rounded-lg font-medium text-sm whitespace-nowrap',
+              cursor: 'hidden',
+              tabContent: 'group-data-[selected=true]:text-primary-300 text-current',
+            }}
           >
-            <div className="bg-white dark:bg-neutral-700 rounded-full p-1 shadow-md">
-              <IconChevronRight className="w-5 h-5 text-neutral-700 dark:text-neutral-300" />
-            </div>
-          </button>
-        )}
+            {history.map((report, index) => (
+              <Tab
+                key={index}
+                title={
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span className="font-semibold">{formatTabDate(report.created_at)}</span>
+                    <span className="text-xs">{formatTime(report.created_at)}</span>
+                  </div>
+                }
+              />
+            ))}
+          </Tabs>
+        </ScrollShadow>
       </div>
     </div>
   )

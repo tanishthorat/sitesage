@@ -10,6 +10,7 @@ import {
   IconTrendingUp,
   IconTrendingDown,
   IconMinus,
+  IconAlertTriangle,
 } from "@tabler/icons-react";
 import { Accordion, AccordionItem, Chip, ScrollShadow } from "@heroui/react";
 import {
@@ -29,6 +30,8 @@ export interface ContentMetricsCardProps {
   h2Count: number;
   /** Total image count */
   imageCount: number;
+  /** Missing alt tags count */
+  missingAltCount: number;
   /** Optional time period label */
   period?: string;
   /** Optional className for custom styling */
@@ -52,6 +55,7 @@ export default function ContentMetricsCard({
   h1Count,
   h2Count,
   imageCount,
+  missingAltCount,
   period = "This month",
   className = "",
   trends,
@@ -69,6 +73,37 @@ export default function ContentMetricsCard({
     if (!trend) return null;
     const sign = trend > 0 ? "+" : "";
     return `${sign}${trend}%`;
+  };
+
+  const getMissingAltReview = (count: number) => {
+    if (count === 0) {
+      return {
+        icon: IconFileText,
+        status: "excellent" as const,
+        title: "All images have alt text",
+        message: "Excellent! All your images have descriptive alt tags, which helps with SEO and accessibility.",
+        bgColor: "bg-emerald-500/10",
+        color: "text-emerald-400",
+      };
+    } else if (count <= 3) {
+      return {
+        icon: IconAlertTriangle,
+        status: "fair" as const,
+        title: `${count} image${count > 1 ? "s" : ""} missing alt text`,
+        message: "Add descriptive alt tags to improve SEO and accessibility for users with screen readers.",
+        bgColor: "bg-amber-500/10",
+        color: "text-amber-400",
+      };
+    } else {
+      return {
+        icon: IconAlertTriangle,
+        status: "poor" as const,
+        title: `${count} images missing alt text`,
+        message: "This significantly impacts your SEO and accessibility. Prioritize adding alt tags to all images.",
+        bgColor: "bg-red-500/10",
+        color: "text-red-400",
+      };
+    }
   };
 
   const metrics = [
@@ -112,6 +147,16 @@ export default function ContentMetricsCard({
       trend: trends?.images,
       review: getImagesReview(imageCount),
     },
+    {
+      id: "missingAlt",
+      label: "Missing Alt Tags",
+      value: missingAltCount,
+      icon: IconAlertTriangle,
+      bgColor: missingAltCount === 0 ? "bg-emerald-500/10" : missingAltCount <= 3 ? "bg-amber-500/10" : "bg-red-500/10",
+      iconColor: missingAltCount === 0 ? "text-emerald-500" : missingAltCount <= 3 ? "text-amber-500" : "text-red-500",
+      trend: undefined,
+      review: getMissingAltReview(missingAltCount),
+    },
   ];
 
   return (
@@ -132,10 +177,9 @@ export default function ContentMetricsCard({
           {/* Period Dropdown */}
           <button
             type="button"
-            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-neutral-400 transition-colors hover:bg-neutral-800/50 hover:text-neutral-300"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs text-neutral-400 transition-colors hover:bg-neutral-800/50 hover:text-neutral-300"
           >
             {period}
-            <IconChevronDown size={14} />
           </button>
         </div>
 

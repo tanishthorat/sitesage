@@ -4,18 +4,18 @@
 import LoadTimeCard from "./LoadTimeCard";
 import ContentMetricsCard from "./ContentMetricsCard";
 import LighthouseChart from "./LighthouseChart";
-import WebsiteHealthCard from "./WebsiteHealthCard";
+import SEOTechnicalCard from "./SEOTechnicalCard";
 import OptimizationIdeasCard from "./OptimizationIdeasCard";
 import AIInsightsCard from "./AIInsightsCard";
 import { Report } from "@/types/api";
 import GaugeCard from "./GaugeCard";
 
 interface TrendsData {
-  performance?: number
-  accessibility?: number
-  seo?: number
-  bestPractices?: number
-  load_time?: number
+  performance?: number;
+  accessibility?: number;
+  seo?: number;
+  bestPractices?: number;
+  load_time?: number;
 }
 
 interface MetricsGridProps {
@@ -74,9 +74,15 @@ export default function MetricsGrid({
           label="SEO Score"
           subtitle={isLatestReport ? "Latest Result" : "Previous Result"}
           score={report.seo_score}
+          gaugeConfig={{
+            progressWidth: 14,
+            scoreFontSize: 48,
+            showAxisLabels: false,
+          }}
         />
 
         <LoadTimeCard
+          subtitle={isLatestReport ? "Latest Result" : "Previous Result"}
           loadTime={report.load_time}
           trend={trends?.load_time}
           history={history
@@ -86,17 +92,19 @@ export default function MetricsGrid({
         />
 
         <ContentMetricsCard
+          period={isLatestReport ? "Latest Result" : "Previous Result"}
           wordCount={report.word_count}
           h1Count={report.h1_count}
           h2Count={report.h2_count}
           imageCount={report.image_count}
+          missingAltCount={report.missing_alt_count}
         />
       </div>
 
       {/* Row 2: Large Lighthouse chart (2 cols) + Website Health card (1 col) */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5 auto-rows-fr">
         {/* Large card spanning 2 columns on desktop */}
-        <div className="md:col-span-2">
+        <div className="md:col-span-2 h-full">
           <LighthouseChart
             performance={report.lighthouse_performance}
             accessibility={report.lighthouse_accessibility}
@@ -110,21 +118,17 @@ export default function MetricsGrid({
           />
         </div>
 
-        {/* Website Health Card */}
-        <div>
-          <WebsiteHealthCard
-            score={report.seo_score}
-            performance={report.lighthouse_performance}
-            trend={trends?.seo}
+        {/* SEO Technical Card */}
+        <div className="h-full">
+          <SEOTechnicalCard
+            robotsTxt={report.robots_txt_exists}
+            sitemap={report.sitemap_exists}
+            schemaMarkup={report.schema_present}
+            ogTags={report.og_tags_present}
+            keywords={report.top_keywords || []}
           />
         </div>
       </div>
-
-      {/* Row 3: Optimization Ideas Card */}
-      <div className="grid grid-cols-1">
-        <OptimizationIdeasCard suggestions={report.ai_suggestions || []} />
-      </div>
-
       {/* Row 4: Full-width AI Insights */}
       <div className="grid grid-cols-1">
         <AIInsightsCard
