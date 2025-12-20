@@ -1,147 +1,239 @@
 // components/dashboard/cards/ContentMetricsCard.tsx
-"use client"
+"use client";
 
-import { useEffect, useRef } from 'react'
-import * as echarts from 'echarts'
+import {
+  IconFileText,
+  IconH1,
+  IconH2,
+  IconPhoto,
+  IconChevronDown,
+  IconTrendingUp,
+  IconTrendingDown,
+  IconMinus,
+} from "@tabler/icons-react";
+import { Accordion, AccordionItem, Chip, ScrollShadow } from "@heroui/react";
+import {
+  getWordCountReview,
+  getH1Review,
+  getH2Review,
+  getImagesReview,
+  getStatusChipProps,
+} from "@/constants/contentMetricsReviews";
 
-interface ContentMetricsCardProps {
-  wordCount: number
-  h1Count: number
-  h2Count: number
-  imageCount: number
-  missingAlt: number
+export interface ContentMetricsCardProps {
+  /** Total word count */
+  wordCount: number;
+  /** H1 heading count */
+  h1Count: number;
+  /** H2 heading count */
+  h2Count: number;
+  /** Total image count */
+  imageCount: number;
+  /** Optional time period label */
+  period?: string;
+  /** Optional className for custom styling */
+  className?: string;
+  /** Optional trend data for each metric */
+  trends?: {
+    words?: number;
+    h1?: number;
+    h2?: number;
+    images?: number;
+  };
+  /** Optional click handler for metric items */
+  onMetricClick?: (metricId: string) => void;
 }
 
-export default function ContentMetricsCard({ 
-  wordCount, 
-  h1Count, 
-  h2Count, 
-  imageCount, 
-  missingAlt 
+/**
+ * ContentMetricsCard - Displays SEO content metrics with reviews and recommendations
+ */
+export default function ContentMetricsCard({
+  wordCount,
+  h1Count,
+  h2Count,
+  imageCount,
+  period = "This month",
+  className = "",
+  trends,
+  onMetricClick,
 }: ContentMetricsCardProps) {
-  const chartRef = useRef<HTMLDivElement>(null)
+  const getTrendIcon = (trend?: number) => {
+    if (!trend) return null;
+    if (trend > 0)
+      return <IconTrendingUp size={14} className="text-emerald-500" />;
+    if (trend < 0)
+      return <IconTrendingDown size={14} className="text-red-500" />;
+    return <IconMinus size={14} className="text-neutral-500" />;
+  };
 
-  const getWordCountStatus = () => {
-    if (wordCount < 300) return { text: 'Low', color: 'text-red-500', icon: '▼' }
-    if (wordCount < 1000) return { text: 'Good', color: 'text-amber-500', icon: '─' }
-    return { text: 'Excellent', color: 'text-emerald-500', icon: '▲' }
-  }
-
-  const status = getWordCountStatus()
-
-  useEffect(() => {
-    if (!chartRef.current) return
-
-    const chart = echarts.init(chartRef.current)
-
-    // Generate trend data (mock for now - can be real data from history)
-    const trendColor = wordCount < 300 ? '#ef4444' : wordCount < 1000 ? '#f59e0b' : '#10b981'
-    const data = [150, 180, 200, 220, 250, wordCount]
-
-    const option = {
-      grid: {
-        left: 0,
-        right: 0,
-        top: 5,
-        bottom: 0,
-        containLabel: false
-      },
-      xAxis: {
-        type: 'category',
-        show: false,
-        data: data.map((_, i) => i)
-      },
-      yAxis: {
-        type: 'value',
-        show: false
-      },
-      series: [
-        {
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          lineStyle: {
-            color: trendColor,
-            width: 2
-          },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                { offset: 0, color: `${trendColor}30` },
-                { offset: 1, color: `${trendColor}05` }
-              ]
-            }
-          },
-          data: data
-        }
-      ]
-    }
-
-    chart.setOption(option)
-
-    const handleResize = () => chart.resize()
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      chart.dispose()
-    }
-  }, [wordCount])
+  const getTrendText = (trend?: number) => {
+    if (!trend) return null;
+    const sign = trend > 0 ? "+" : "";
+    return `${sign}${trend}%`;
+  };
 
   const metrics = [
-    { label: 'H1 Tags', value: h1Count, ideal: 1 },
-    { label: 'H2 Tags', value: h2Count, ideal: '3+' },
-    { label: 'Images', value: imageCount, ideal: '5+' },
-    { label: 'Missing Alt', value: missingAlt, ideal: 0 }
-  ]
-
-  const getMetricColor = (label: string, value: number) => {
-    if (label === 'H1 Tags') return value === 1 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400'
-    if (label === 'Missing Alt') return value === 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-    return value > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-400 dark:text-gray-500'
-  }
+    {
+      id: "words",
+      label: "Word Count",
+      value: wordCount,
+      icon: IconFileText,
+      bgColor: "bg-primary-500/10",
+      iconColor: "text-primary-500",
+      trend: trends?.words,
+      review: getWordCountReview(wordCount),
+    },
+    {
+      id: "h1",
+      label: "H1 Tags",
+      value: h1Count,
+      icon: IconH1,
+      bgColor: "bg-secondary-500/10",
+      iconColor: "text-secondary-500",
+      trend: trends?.h1,
+      review: getH1Review(h1Count),
+    },
+    {
+      id: "h2",
+      label: "H2 Tags",
+      value: h2Count,
+      icon: IconH2,
+      bgColor: "bg-warning-500/10",
+      iconColor: "text-warning-500",
+      trend: trends?.h2,
+      review: getH2Review(h2Count),
+    },
+    {
+      id: "images",
+      label: "Images",
+      value: imageCount,
+      icon: IconPhoto,
+      bgColor: "bg-info-500/10",
+      iconColor: "text-info-500",
+      trend: trends?.images,
+      review: getImagesReview(imageCount),
+    },
+  ];
 
   return (
-    <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 hover:shadow-lg transition-shadow">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-600 dark:text-gray-300">Content Metrics</h3>
-        <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-          </svg>
-        </button>
-      </div>
+    <div
+      className={`relative flex flex-col rounded-3xl border border-neutral-800/50 bg-neutral-900/95 px-6 py-6 shadow-2xl backdrop-blur-sm ${className}`}
+    >
+      {/* Subtle gradient overlay */}
+      <div className="pointer-events-none absolute inset-0 rounded-3xl bg-gradient-to-br from-neutral-800/30 via-transparent to-transparent" />
 
-      <div className="mb-2">
-        <div className="flex items-baseline gap-3">
-          <span className="text-4xl font-bold text-gray-900 dark:text-white">{wordCount || 0}</span>
-          <span className={`flex items-center text-sm font-medium ${status.color}`}>
-            {status.icon} {status.text}
-          </span>
+      {/* Content */}
+      <div className="relative space-y-5">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-primary-400">
+            Content Metrics
+          </h3>
+
+          {/* Period Dropdown */}
+          <button
+            type="button"
+            className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm text-neutral-400 transition-colors hover:bg-neutral-800/50 hover:text-neutral-300"
+          >
+            {period}
+            <IconChevronDown size={14} />
+          </button>
         </div>
-        <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Total Words</p>
-      </div>
 
-      <div ref={chartRef} className="h-16 mt-4 mb-6" />
+        {/* Metrics List with Accordion */}
+        <ScrollShadow visibility="none" hideScrollBar className="max-h-68">
+          <Accordion
+            variant="splitted"
+            className="px-0"
+            itemClasses={{
+              base: "bg-neutral-800/30 border border-neutral-700/50",
+              title: "text-neutral-200 text-sm font-medium",
+              trigger: "py-3 px-3",
+              content: "px-3 pb-3 pt-1",
+            }}
+          >
+            {metrics.map((metric) => {
+              const Icon = metric.icon;
+              const ReviewIcon = metric.review.icon;
+              const chipProps = getStatusChipProps(metric.review.status);
 
-      <div className="grid grid-cols-2 gap-4">
-        {metrics.map((metric) => (
-          <div key={metric.label} className="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-3">
-            <div className={`text-2xl font-bold ${getMetricColor(metric.label, metric.value)}`}>
-              {metric.value}
-            </div>
-            <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{metric.label}</div>
-            <div className="text-xs text-gray-400 dark:text-gray-500 mt-0.5">
-              Ideal: {metric.ideal}
-            </div>
-          </div>
-        ))}
+              return (
+                <AccordionItem
+                  key={metric.id}
+                  aria-label={metric.label}
+                  title={
+                    <div className="flex items-center gap-3 w-full">
+                      {/* Icon */}
+                      <div
+                        className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full ${metric.bgColor}`}
+                      >
+                        <Icon size={18} className={metric.iconColor} />
+                      </div>
+
+                      {/* Label & Value */}
+                      <div className="flex flex-col flex-1 min-w-0">
+                        <span className="text-sm font-medium text-neutral-200">
+                          {metric.label}
+                        </span>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-xs text-neutral-500">
+                            {metric.value.toLocaleString()}
+                          </span>
+                          {metric.trend !== undefined && (
+                            <div className="flex items-center gap-1">
+                              {getTrendIcon(metric.trend)}
+                              <span
+                                className={`text-xs ${
+                                  metric.trend > 0
+                                    ? "text-emerald-500"
+                                    : metric.trend < 0
+                                    ? "text-red-500"
+                                    : "text-neutral-500"
+                                }`}
+                              >
+                                {getTrendText(metric.trend)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Status Chip */}
+                      <Chip
+                        size="sm"
+                        color={chipProps.color}
+                        variant={chipProps.variant}
+                        className="capitalize"
+                      >
+                        {metric.review.status}
+                      </Chip>
+                    </div>
+                  }
+                >
+                  {/* Review Content */}
+                  <div className={`rounded-lg p-3 ${metric.review.bgColor}`}>
+                    <div className="flex items-start gap-3">
+                      <div className="flex shrink-0 mt-0.5">
+                        <ReviewIcon size={20} className={metric.review.color} />
+                      </div>
+                      <div className="flex-1 space-y-1">
+                        <h4
+                          className={`text-sm font-semibold ${metric.review.color}`}
+                        >
+                          {metric.review.title}
+                        </h4>
+                        <p className="text-xs text-neutral-300 leading-relaxed">
+                          {metric.review.message}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
+        </ScrollShadow>
       </div>
     </div>
-  )
+  );
 }
