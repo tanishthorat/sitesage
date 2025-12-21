@@ -390,24 +390,22 @@ export default function DashboardPage() {
           )}
 
           {/* Dashboard Content */}
-          {!error && !isEmpty && (
+          {!error && !isEmpty && !loading && (
             <>
               {/* History Section - Tabs */}
-              {!loading && (
-                <HistorySection
-                  history={recentScans}
-                  selectedReport={selectedReport}
-                  onSelectReport={handleSelectReport}
-                  onAnalyzeAgain={handleAnalyzeAgain}
-                />
-              )}
+              <HistorySection
+                history={recentScans}
+                selectedReport={selectedReport}
+                onSelectReport={handleSelectReport}
+                onAnalyzeAgain={handleAnalyzeAgain}
+              />
 
               {/* Metrics Grid - Bento Layout */}
               <MetricsGrid
                 report={selectedReport}
                 trends={null}
                 history={recentScans}
-                loading={loading}
+                loading={false}
                 lighthouseLoading={false}
               />
             </>
