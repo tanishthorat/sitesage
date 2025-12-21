@@ -5,7 +5,6 @@ import LoadTimeCard from "./LoadTimeCard";
 import ContentMetricsCard from "./ContentMetricsCard";
 import LighthouseChart from "./LighthouseChart";
 import SEOTechnicalCard from "./SEOTechnicalCard";
-import OptimizationIdeasCard from "./OptimizationIdeasCard";
 import AIInsightsCard from "./AIInsightsCard";
 import { Report } from "@/types/api";
 import GaugeCard from "./GaugeCard";
@@ -33,6 +32,11 @@ export default function MetricsGrid({
   loading = false,
   lighthouseLoading = false,
 }: MetricsGridProps) {
+  // Show loading state - don't show "No Reports Yet" during initial load
+  if (loading && !report) {
+    return null; // Parent component shows skeleton
+  }
+
   if (!report) {
     return (
       <div className="text-center py-12">
@@ -122,6 +126,7 @@ export default function MetricsGrid({
             sitemap={report.sitemap_exists}
             ogTags={report.og_tags_present}
             schema={report.schema_present}
+            keywords={report.top_keywords || []}
             loading={lighthouseLoading}
           />
         </div>
@@ -133,6 +138,8 @@ export default function MetricsGrid({
             sitemap={report.sitemap_exists}
             schemaMarkup={report.schema_present}
             ogTags={report.og_tags_present}
+            title={report.title}
+            metaDescription={report.meta_description}
             keywords={report.top_keywords || []}
             loading={loading}
           />

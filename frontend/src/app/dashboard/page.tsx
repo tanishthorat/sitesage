@@ -8,8 +8,13 @@ import api, { apiEndpoints } from "@/lib/api";
 import { Report } from "@/types/api";
 import MetricsGrid from "@/components/dashboard/MetricsGrid";
 import HistorySection from "@/components/dashboard/HistorySection";
-import { IconRefresh, IconPlus, IconSparkles, IconSearch } from "@tabler/icons-react";
-import { Button } from "@heroui/react";
+import {
+  IconRefresh,
+  IconPlus,
+  IconSparkles,
+  IconSearch,
+} from "@tabler/icons-react";
+import { Button, Skeleton, Spinner } from "@heroui/react";
 
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
@@ -26,43 +31,46 @@ export default function DashboardPage() {
 
   const getErrorMessage = (err: unknown): string => {
     if (err instanceof Error) {
-      const error = err as Error & { response?: { status: number }; code?: string };
-      
+      const error = err as Error & {
+        response?: { status: number };
+        code?: string;
+      };
+
       // Handle 503 Service Unavailable
       if (error.response?.status === 503) {
         return "Service temporarily unavailable. Please try again in a few moments.";
       }
-      
+
       // Handle 502 Bad Gateway
       if (error.response?.status === 502) {
         return "Connection error. Please check your internet and try again.";
       }
-      
+
       // Handle 500 Server Error
       if (error.response?.status === 500) {
         return "Server error. Our team has been notified. Please try again later.";
       }
-      
+
       // Handle 401 Unauthorized
       if (error.response?.status === 401) {
         return "Session expired. Please log in again.";
       }
-      
+
       // Handle 404 Not Found
       if (error.response?.status === 404) {
         return "No projects found. Create a new project to get started.";
       }
-      
+
       // Handle timeout
       if (error.code === "ECONNABORTED") {
         return "Request timeout. Please check your connection and try again.";
       }
-      
+
       // Network error
       if (error.message === "Network Error") {
         return "Network error. Please check your internet connection.";
       }
-      
+
       return error.message || "Failed to load dashboard data";
     }
     return "Failed to load dashboard data";
@@ -112,7 +120,7 @@ export default function DashboardPage() {
         }
       } catch (err: unknown) {
         const errorObj = err as Error & { response?: { status: number } };
-        
+
         // Check if it's a 404 (no projects) vs actual error
         if (errorObj.response?.status === 404) {
           setIsEmpty(true);
@@ -122,7 +130,7 @@ export default function DashboardPage() {
           console.error("Error fetching dashboard data:", err);
           setError(errorMsg);
         }
-        
+
         // Set empty state for fallback
         setLatestReport(null);
         setSelectedReport(null);
@@ -168,16 +176,16 @@ export default function DashboardPage() {
 
   const handleAnalyzeAgain = async () => {
     if (!selectedProject) return;
-    
+
     try {
       setRefreshing(true);
       setError("");
-      
+
       // Make a new analysis request for the selected project URL
       await api.post(apiEndpoints.analyze, {
         url: selectedProject,
       });
-      
+
       // Refresh the dashboard data to get the new report
       await fetchDashboardData(selectedProject);
     } catch (err: unknown) {
@@ -239,25 +247,46 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          {/* Loading State */}
+          {/* Loading State - History Section Skeleton */}
           {loading && (
-            <div className="flex items-center justify-center min-h-400">
-              <div className="text-center">
-                <div className="inline-block animate-spin rounded-full h-12 w-12 border-4 border-neutral-200 dark:border-neutral-700 border-t-primary-600 dark:border-t-primary-400 mb-4"></div>
-                <p className="text-neutral-600 dark:text-neutral-400 font-medium">
-                  Loading your dashboard...
-                </p>
+            <>
+              <div className="flex items-center gap-3 mb-6">
+                <Skeleton className="h-12 w-12 rounded-lg shrink-0" />
+                <div className="flex gap-2 overflow-x-auto">
+                  {[1, 2, 3, 4].map((i) => (
+                    <Skeleton
+                      key={i}
+                      className="h-12 w-32 rounded-lg shrink-0"
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+
+              {/* Metrics Grid Loading Spinner */}
+              <div className="flex gap-3 flex-col items-center justify-center min-h-125">
+                <Spinner size="lg" color="primary" />
+                <span>loading...</span>
+              </div>
+            </>
           )}
 
           {/* Error State */}
           {error && !loading && !isEmpty && (
             <div className="bg-amber-50 dark:bg-amber-950/30 border-2 border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-6">
               <div className="flex items-start gap-4">
-                <div className="flex-shrink-0 mt-0.5">
-                  <svg className="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="shrink-0 mt-0.5">
+                  <svg
+                    className="w-6 h-6 text-amber-600 dark:text-amber-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                    />
                   </svg>
                 </div>
                 <div className="flex-1">
@@ -273,7 +302,11 @@ export default function DashboardPage() {
                       disabled={refreshing}
                       className="px-4 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-sm font-medium transition-colors flex items-center justify-center gap-2"
                     >
-                      <IconRefresh className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`} />
+                      <IconRefresh
+                        className={`w-4 h-4 ${
+                          refreshing ? "animate-spin" : ""
+                        }`}
+                      />
                       Try Again
                     </Button>
                     <Button
@@ -291,16 +324,18 @@ export default function DashboardPage() {
 
           {/* Empty State - No Projects */}
           {isEmpty && !loading && !error && (
-            <div className="flex items-center justify-center min-h-[500px]">
+            <div className="flex items-center justify-center min-h-125">
               <div className="text-center max-w-md px-4">
-                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-primary-500/20 to-primary-600/20 border-2 border-primary-500/30 mb-6">
+                <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-linear-to-br from-primary-500/20 to-primary-600/20 border-2 border-primary-500/30 mb-6">
                   <IconSparkles className="w-10 h-10 text-primary-500" />
                 </div>
                 <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-3">
                   Welcome to Your SEO Dashboard
                 </h2>
                 <p className="text-neutral-600 dark:text-neutral-400 mb-6 leading-relaxed">
-                  You haven&apos;t analyzed any websites yet. Start your SEO journey by analyzing your first URL to get comprehensive insights and recommendations.
+                  You haven&apos;t analyzed any websites yet. Start your SEO
+                  journey by analyzing your first URL to get comprehensive
+                  insights and recommendations.
                 </p>
                 <Button
                   onPress={handleNewAnalysis}
@@ -345,21 +380,25 @@ export default function DashboardPage() {
           )}
 
           {/* Dashboard Content */}
-          {!loading && !error && !isEmpty && (
+          {!error && !isEmpty && (
             <>
               {/* History Section - Tabs */}
-              <HistorySection
-                history={recentScans}
-                selectedReport={selectedReport}
-                onSelectReport={handleSelectReport}
-                onAnalyzeAgain={handleAnalyzeAgain}
-              />
+              {!loading && (
+                <HistorySection
+                  history={recentScans}
+                  selectedReport={selectedReport}
+                  onSelectReport={handleSelectReport}
+                  onAnalyzeAgain={handleAnalyzeAgain}
+                />
+              )}
 
               {/* Metrics Grid - Bento Layout */}
               <MetricsGrid
                 report={selectedReport}
                 trends={null}
                 history={recentScans}
+                loading={loading}
+                lighthouseLoading={false}
               />
             </>
           )}

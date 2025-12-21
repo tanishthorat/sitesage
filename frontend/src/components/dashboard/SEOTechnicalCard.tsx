@@ -1,14 +1,21 @@
 // components/dashboard/cards/SEOTechnicalCard.tsx
 "use client";
 
-import { Card, CardBody, Tooltip, Chip, Skeleton } from "@heroui/react";
+import {
+  Card,
+  CardBody,
+  Tooltip,
+  Chip,
+  Skeleton,
+  ScrollShadow,
+} from "@heroui/react";
 import { IconCheck, IconX, IconAlertCircle } from "@tabler/icons-react";
 
 interface SEOMetric {
   label: string;
   present: boolean;
   description: string;
-  impact: string;
+  value?: string | null;
 }
 
 interface SEOTechnicalCardProps {
@@ -16,6 +23,8 @@ interface SEOTechnicalCardProps {
   sitemap: boolean;
   schemaMarkup: boolean;
   ogTags: boolean;
+  title?: string | null;
+  metaDescription?: string | null;
   className?: string;
   keywords?: string[];
   loading?: boolean;
@@ -26,38 +35,44 @@ export default function SEOTechnicalCard({
   sitemap,
   schemaMarkup,
   ogTags,
+  title,
+  metaDescription,
   className = "",
-  keywords = [],
   loading = false,
 }: SEOTechnicalCardProps) {
   const metrics: SEOMetric[] = [
     {
+      label: "Title Tag",
+      present: !!title,
+      description:
+        "HTML title tag that appears in search results and browser tabs",
+      value: title,
+    },
+    {
+      label: "Meta Description",
+      present: !!metaDescription,
+      description: "Summary text that appears in search engine results",
+      value: metaDescription,
+    },
+    {
       label: "Robots.txt",
       present: robotsTxt,
       description: "Controls search engine crawler access to your site",
-      impact:
-        "Critical - Helps search engines understand which pages to crawl and which to skip. Improves crawl efficiency.",
     },
     {
       label: "Sitemap",
       present: sitemap,
       description: "XML map of your site structure for search engines",
-      impact:
-        "High - Ensures all important pages are discoverose and indexed. Speeds up crawling of new content.",
     },
     {
       label: "Schema Markup",
       present: schemaMarkup,
-      description: "Structurose data helping search engines understand content",
-      impact:
-        "High - Enables rich snippets in search results. Improves CTR and helps with featurose snippets.",
+      description: "Structured data helping search engines understand content",
     },
     {
       label: "OG Tags",
       present: ogTags,
       description: "Open Graph meta tags for social media sharing",
-      impact:
-        "Medium - Controls how your content appears when sharose on social platforms. Improves engagement.",
     },
   ];
 
@@ -106,92 +121,93 @@ export default function SEOTechnicalCard({
           {/* Metrics List */}
           {loading ? (
             <div className="space-y-3 pt-2">
-              {[1, 2, 3, 4].map((i) => (
+              {[1, 2, 3, 4, 5, 6].map((i) => (
                 <Skeleton key={i} className="h-12 rounded-lg" />
               ))}
             </div>
           ) : (
-            <div className="space-y-3 pt-2 flex-1 overflow-y-auto">
-            {metrics.map((metric) => (
-              <Tooltip
-                key={metric.label}
-                content={
-                  <div className="max-w-xs space-y-2 p-2">
-                    <div className="flex items-start gap-2">
-                      <IconAlertCircle className="w-4 h-4 text-primary-400 mt-0.5 shrink-0" />
-                      <div>
-                        <p className="text-sm font-semibold text-white">
-                          {metric.label}
-                        </p>
-                        <p className="text-xs text-neutral-300 mt-1">
-                          {metric.description}
-                        </p>
+            <ScrollShadow
+              className="space-y-3 pt-2 flex-1"
+              size={40}
+              hideScrollBar
+            >
+              {metrics.map((metric) => (
+                <Tooltip
+                  key={metric.label}
+                  content={
+                    <div className="max-w-xs space-y-2 p-2">
+                      <div className="flex items-start gap-2">
+                        <IconAlertCircle className="w-4 h-4 text-primary-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-sm font-semibold text-white">
+                            {metric.label}
+                          </p>
+                          <p className="text-xs text-neutral-300 mt-1">
+                            {metric.description}
+                          </p>
+                        </div>
                       </div>
+                      {metric.value && (
+                        <div className="border-t border-neutral-600 pt-2">
+                          <p className="text-xs text-neutral-200 leading-relaxed">
+                            {metric.value}
+                          </p>
+                        </div>
+                      )}
                     </div>
-                    <div className="border-t border-neutral-600 pt-2">
-                      <p className="text-xs text-amber-200 font-medium">
-                        Impact:
-                      </p>
-                      <p className="text-xs text-neutral-200 mt-1">
-                        {metric.impact}
-                      </p>
-                    </div>
-                  </div>
-                }
-                delay={0}
-                closeDelay={0}
-                placement="top-start"
-              >
-                <div
-                  className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-help ${
-                    metric.present
-                      ? "bg-neutral-500/10 border-neutral-500/30 hover:border-neutral-500/60"
-                      : "bg-rose-500/10 border-rose-500/30 hover:border-rose-500/60"
-                  }`}
+                  }
+                  delay={0}
+                  closeDelay={0}
+                  placement="top-start"
                 >
-                  <div className="flex items-center gap-3">
-                    {metric.present ? (
-                      <div className="flex items-center justify-center w-5 h-5 rounded bg-primary-500/20 border border-primary-500">
-                        <IconCheck className="w-4 h-4 text-primary-400" />
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-center w-5 h-5 rounded bg-rose-500/20 border border-rose-500">
-                        <IconX className="w-4 h-4 text-rose-400" />
-                      </div>
-                    )}
-                    <span
-                      className={`text-sm font-medium ${
-                        metric.present
-                          ? "text-primary-400"
-                          : "text-rose-400"
-                      }`}
-                    >
-                      {metric.label}
-                    </span>
-                  </div>
-
-                  <Chip
-                    size="sm"
-                    variant="flat"
-                    className={
+                  <div
+                    className={`flex items-center justify-between p-3 rounded-lg border transition-all cursor-help ${
                       metric.present
-                        ? "bg-primary-500 text-neutral-800"
-                        : "bg-yellow-500 text-neutral-800"
-                    }
-                    startContent={
-                      metric.present ? (
-                        <IconCheck className="w-3 h-3" />
-                      ) : (
-                        <IconAlertCircle className="w-3 h-3" />
-                      )
-                    }
+                        ? "bg-neutral-500/10 border-neutral-500/30 hover:border-neutral-500/60"
+                        : "bg-rose-500/10 border-rose-500/30 hover:border-rose-500/60"
+                    }`}
                   >
-                    {metric.present ? "Present" : "Missing"}
-                  </Chip>
-                </div>
-              </Tooltip>
-            ))}
-            </div>
+                    <div className="flex items-center gap-3">
+                      {metric.present ? (
+                        <div className="flex items-center justify-center w-5 h-5 rounded bg-primary-500/20 border border-primary-500">
+                          <IconCheck className="w-4 h-4 text-primary-400" />
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center w-5 h-5 rounded bg-rose-500/20 border border-rose-500">
+                          <IconX className="w-4 h-4 text-rose-400" />
+                        </div>
+                      )}
+                      <span
+                        className={`text-sm font-medium ${
+                          metric.present ? "text-primary-400" : "text-rose-400"
+                        }`}
+                      >
+                        {metric.label}
+                      </span>
+                    </div>
+
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      className={
+                        metric.present
+                          ? "bg-primary-500 text-neutral-800"
+                          : "bg-yellow-500 text-neutral-800"
+                      }
+                      startContent={
+                        metric.present ? (
+                          <IconCheck className="w-3 h-3" />
+                        ) : (
+                          <IconAlertCircle className="w-3 h-3" />
+                        )
+                      }
+                    >
+                      {metric.present ? "Present" : "Missing"}
+                    </Chip>
+                  </div>
+                </Tooltip>
+              ))}
+            </ScrollShadow>
           )}
 
           {/* Footer suggestion */}
@@ -202,32 +218,6 @@ export default function SEOTechnicalCard({
                 technical SEO elements to improve your site&apos;s search engine
                 visibility.
               </p>
-            </div>
-          )}
-
-          {/* Top Keywords Cloud */}
-          {presentCount === metrics.length && keywords.length > 0 && (
-            <div className="mt-auto">
-              <p className="text-xs text-neutral-500 mb-2">Top Keywords</p>
-              <div className="flex flex-wrap gap-2">
-                {keywords.map((keyword, index) => {
-                  // Calculate font size based on position (descending order)
-                  const maxSize = 16;
-                  const minSize = 10;
-                  const ratio = (keywords.length - index) / keywords.length;
-                  const fontSize = minSize + (maxSize - minSize) * ratio;
-                  
-                  return (
-                    <span
-                      key={index}
-                      className="px-2.5 py-1 rounded-md bg-neutral-500/15 border border-neutral-500/30 text-neutral-300 font-medium whitespace-nowrap"
-                      style={{ fontSize: `${fontSize}px` }}
-                    >
-                      {keyword}
-                    </span>
-                  );
-                })}
-              </div>
             </div>
           )}
         </div>

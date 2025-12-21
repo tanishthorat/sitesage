@@ -29,13 +29,16 @@ export const publicApi = axios.create({
 // Request interceptor to attach Firebase ID token
 api.interceptors.request.use(
   async (config) => {
-    const user = auth.currentUser;
-    if (user) {
-      try {
-        const token = await user.getIdToken();
-        config.headers.Authorization = `Bearer ${token}`;
-      } catch (error) {
-        console.error('Failed to get Firebase token:', error);
+    // Only try to get auth token in browser
+    if (typeof window !== 'undefined' && auth) {
+      const user = auth.currentUser;
+      if (user) {
+        try {
+          const token = await user.getIdToken();
+          config.headers.Authorization = `Bearer ${token}`;
+        } catch (error) {
+          console.error('Failed to get Firebase token:', error);
+        }
       }
     }
     return config;
@@ -51,15 +54,18 @@ api.interceptors.response.use(
   async (error) => {
     if (error.response?.status === 401) {
       // Token expired or invalid - refresh token
-      const user = auth.currentUser;
-      if (user) {
-        try {
-          const token = await user.getIdToken(true); // Force refresh
-          error.config.headers.Authorization = `Bearer ${token}`;
-          return api.request(error.config);
-        } catch {
-          // Silently fail - let the calling code handle 401
-          // Don't redirect to login automatically for API calls
+      // Only try to refresh in browser with auth available
+      if (typeof window !== 'undefined' && auth) {
+        const user = auth.currentUser;
+        if (user) {
+          try {
+            const token = await user.getIdToken(true); // Force refresh
+            error.config.headers.Authorization = `Bearer ${token}`;
+            return api.request(error.config);
+          } catch {
+            // Silently fail - let the calling code handle 401
+            // Don't redirect to login automatically for API calls
+          }
         }
       }
     }

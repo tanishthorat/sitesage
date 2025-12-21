@@ -24,6 +24,7 @@ interface LighthouseChartProps {
   sitemap?: boolean
   ogTags?: boolean
   schema?: boolean
+  keywords?: string[]
   label?: string
   subtitle?: string
   className?: string
@@ -54,10 +55,7 @@ export default function LighthouseChart({
   seo,
   bestPractices,
   history,
-  robotsTxt,
-  sitemap,
-  ogTags,
-  schema,
+  keywords = [],
   label = "Lighthouse Metrics",
   subtitle = "Performance Analysis",
   className = "",
@@ -333,6 +331,32 @@ export default function LighthouseChart({
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* Top Keywords Cloud */}
+          {!loading && keywords.length > 0 && (
+            <div className="pt-4 border-t border-neutral-800/50">
+              <p className="text-xs text-neutral-500 mb-2">Top Keywords</p>
+              <div className="flex flex-wrap gap-2">
+                {keywords.map((keyword, index) => {
+                  // Calculate font size based on position (descending order)
+                  const maxSize = 16;
+                  const minSize = 10;
+                  const ratio = (keywords.length - index) / keywords.length;
+                  const fontSize = minSize + (maxSize - minSize) * ratio;
+                  
+                  return (
+                    <span
+                      key={index}
+                      className="px-2.5 py-1 rounded-md bg-neutral-500/15 border border-neutral-500/30 text-neutral-300 font-medium whitespace-nowrap"
+                      style={{ fontSize: `${fontSize}px` }}
+                    >
+                      {keyword}
+                    </span>
+                  );
+                })}
+              </div>
             </div>
           )}
 

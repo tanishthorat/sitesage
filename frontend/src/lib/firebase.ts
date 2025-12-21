@@ -1,8 +1,8 @@
 /**
  * Firebase Configuration and Initialization
  */
-import { initializeApp } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
+import { getAuth, Auth } from 'firebase/auth';
 
 // Firebase configuration from environment variables
 const firebaseConfig = {
@@ -15,10 +15,20 @@ const firebaseConfig = {
   measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
+// Initialize Firebase only in the browser
+let app: FirebaseApp | undefined;
+let auth: Auth | undefined;
 
-// Initialize Firebase Authentication
-export const auth = getAuth(app);
+if (typeof window !== 'undefined') {
+  // Only initialize on client-side
+  if (!getApps().length) {
+    app = initializeApp(firebaseConfig);
+  } else {
+    app = getApps()[0];
+  }
+  auth = getAuth(app);
+}
 
+// Export with fallback for server-side rendering
+export { auth };
 export default app;
