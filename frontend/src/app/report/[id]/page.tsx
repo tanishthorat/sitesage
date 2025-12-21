@@ -163,20 +163,44 @@ export default function ReportPage({ params }: ReportPageProps) {
         <AppNavbar />
         <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="flex items-center justify-center min-h-100">
-            <div className="text-center">
-              <div className="text-red-600 dark:text-red-400 text-6xl mb-4">
-                ⚠️
+            <div className="text-center max-w-md">
+              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 mb-4">
+                <svg className="w-8 h-8 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4v.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
               </div>
               <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-2">
-                Report Not Found
+                {error?.includes("503") || error?.includes("Service")
+                  ? "Service Unavailable"
+                  : error?.includes("502") || error?.includes("Connection")
+                  ? "Connection Error"
+                  : "Report Not Found"}
               </h2>
-              <p className="text-neutral-600 dark:text-neutral-400 mb-6">
-                {error ||
-                  "The report you are looking for does not exist or has been deleted."}
+              <p className="text-neutral-600 dark:text-neutral-400 mb-8">
+                {error || "The report you are looking for does not exist or has been deleted."}
               </p>
-              <Button color="primary" onPress={() => router.push("/")}>
-                Back to Home
-              </Button>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                <Button 
+                  color="primary" 
+                  onPress={() => window.location.reload()}
+                  className="flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Try Again
+                </Button>
+                <Button 
+                  variant="bordered"
+                  onPress={() => router.push("/")}
+                  className="flex items-center justify-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-3m0 0l7-4 7 4M5 7v10a1 1 0 001 1h12a1 1 0 001-1V7m-7 10l-2 1m0 0l-7-4" />
+                  </svg>
+                  Back to Home
+                </Button>
+              </div>
             </div>
           </div>
         </main>
