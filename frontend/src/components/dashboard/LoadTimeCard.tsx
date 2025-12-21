@@ -1,7 +1,7 @@
 // components/dashboard/cards/LoadTimeCard.tsx
 "use client"
 
-import { useEffect, useRef, ReactNode } from 'react'
+import { useEffect, useRef, ReactNode, useMemo } from 'react'
 import * as echarts from 'echarts'
 import { Card, CardBody, Skeleton } from '@heroui/react'
 import { IconArrowUp, IconArrowDown, IconCheck, IconAlertTriangle, IconX } from '@tabler/icons-react'
@@ -50,89 +50,121 @@ export default function LoadTimeCard({
   const chartRef = useRef<HTMLDivElement>(null)
   const chartInstanceRef = useRef<echarts.ECharts | null>(null)
 
-  // Determine color based on load time
-  const getStatusColor = () => {
+  // Memoize status color to prevent unnecessary re-renders
+  const statusColor = useMemo(() => {
     if (loadTime < 1) return { text: 'text-emerald-400', value: '#10b981' }
     if (loadTime < 2) return { text: 'text-amber-400', value: '#f59e0b' }
     return { text: 'text-red-400', value: '#ef4444' }
-  }
+  }, [loadTime])
 
-  const statusColor = getStatusColor()
-
-  useEffect(() => {
-    if (!chartRef.current) return
-
-    const instance = echarts.init(chartRef.current, undefined, {
-      renderer: 'canvas'
-    })
-    chartInstanceRef.current = instance
-
-    // Prepare data - use history or generate sample data
-    const data = history.length > 0
+  // Memoize chart data to prevent unnecessary recalculations
+  const chartData = useMemo(() => {
+    return history.length > 0
       ? history.slice(0, 7).reverse()
       : [0.9, 0.85, 0.82, 0.78, 0.80, 0.76, loadTime]
+  }, [history, loadTime])
 
-    const option = {
-      grid: {
-        left: 0,
-        right: 0,
-        top: 5,
-        bottom: 0,
-        containLabel: false
-      },
-      xAxis: {
-        type: 'category',
-        show: false,
-        data: data.map((_, i) => i)
-      },
-      yAxis: {
-        type: 'value',
-        show: false
-      },
-      series: [
-        {
-          type: 'line',
-          smooth: true,
-          symbol: 'none',
-          lineStyle: {
-            color: statusColor.value,
-            width: 2
-          },
-          areaStyle: {
-            color: {
-              type: 'linear',
-              x: 0,
-              y: 0,
-              x2: 0,
-              y2: 1,
-              colorStops: [
-                {
-                  offset: 0,
-                  color: statusColor.value + '40'
-                },
-                {
-                  offset: 1,
-                  color: statusColor.value + '08'
-                }
-              ]
-            }
-          },
-          data: data
-        }
-      ]
-    }
+  useEffect(() => {
+    // Don't render chart while loading or if no ref
+    if (loading || !chartRef.current) return
 
-    instance.setOption(option)
-
-    const handleResize = () => instance?.resize()
-    window.addEventListener('resize', handleResize)
-
-    return () => {
-      window.removeEventListener('resize', handleResize)
-      instance?.dispose()
+    // Dispose existing instance if it exists
+    if (chartInstanceRef.current) {
+      chartInstanceRef.current.dispose()
       chartInstanceRef.current = null
     }
-  }, [loadTime, history, statusColor])
+
+    // Small delay to ensure DOM is ready
+    const timeoutId = setTimeout(() => {
+      if (!chartRef.current) return
+
+      try {
+        const instance = echarts.init(chartRef.current, undefined, {
+          renderer: 'canvas'
+        })
+        chartInstanceRef.current = instance
+
+        const option = {
+          grid: {
+            left: 0,
+            right: 0,
+            top: 5,
+            bottom: 0,
+            containLabel: false
+          },
+          xAxis: {
+            type: 'category',
+            show: false,
+            data: chartData.map((_, i) => i)
+          },
+          yAxis: {
+            type: 'value',
+            show: false
+          },
+          series: [
+            {
+              type: 'line',
+              smooth: true,
+              symbol: 'none',
+              lineStyle: {
+                color: statusColor.value,
+                width: 2
+              },
+              areaStyle: {
+                color: {
+                  type: 'linear',
+                  x: 0,
+                  y: 0,
+                  x2: 0,
+                  y2: 1,
+                  colorStops: [
+                    {
+                      offset: 0,
+                      color: statusColor.value + '40'
+                    },
+                    {
+                      offset: 1,
+                      color: statusColor.value + '08'
+                    }
+                  ]
+                }
+              },
+              data: chartData
+            }
+          ]
+        }
+
+        instance.setOption(option)
+
+        // Resize handler
+        const handleResize = () => {
+          if (chartInstanceRef.current) {
+            chartInstanceRef.current.resize()
+          }
+        }
+        window.addEventListener('resize', handleResize)
+
+        // Store cleanup function
+        return () => {
+          window.removeEventListener('resize', handleResize)
+        }
+      } catch (error) {
+        console.error('Error initializing LoadTimeCard chart:', error)
+      }
+    }, 50)
+
+    return () => {
+      clearTimeout(timeoutId)
+      if (chartInstanceRef.current) {
+        try {
+          chartInstanceRef.current.dispose()
+        } catch (error) {
+          console.error('Error disposing chart:', error)
+        }
+        chartInstanceRef.current = null
+      }
+    }
+  }, [chartData, statusColor, loading])
 
   return (
     <Card
