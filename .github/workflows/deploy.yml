@@ -66,6 +66,7 @@ jobs:
               -p 8000:8000 \
               --network sitesage-net \
               --env-file /home/ubuntu/sitesage/.env \
+              -v /home/ubuntu/sitesage/serviceAccountKey.json:/app/serviceAccountKey.json \
               ghcr.io/${{ env.IMAGE_NAME }}:latest
             
             # Cleanup old images (keep last 3)
