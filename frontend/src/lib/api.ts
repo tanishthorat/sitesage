@@ -86,7 +86,7 @@ export const apiEndpoints = {
   
   // History
   historyUnique: 'history/unique',
-  historyByUrl: (url: string) => `history/${encodeURIComponent(url)}`,
+  historyByUrl: (url: string) => `history/by-url?url=${encodeURIComponent(url)}`,
   
   // Health
   health: 'health',

@@ -44,7 +44,11 @@ async function handleProxyRequest(
     
     // Construct the backend URL with /api/v1/ prefix
     const path = params.path?.join('/') || '';
-    const backendUrl = `${BACKEND_URL}/api/v1/${path}`;
+    
+    // Forward query parameters from the original request
+    const searchParams = request.nextUrl.searchParams.toString();
+    const queryString = searchParams ? `?${searchParams}` : '';
+    const backendUrl = `${BACKEND_URL}/api/v1/${path}${queryString}`;
     
     // Get the request body if present
     let body: unknown = undefined;

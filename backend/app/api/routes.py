@@ -285,8 +285,54 @@ async def get_unique_urls(
         raise DatabaseException("Failed to retrieve history")
 
 
+def _normalize_url(url: str) -> str:
+    """
+    Normalize URL by ensuring consistent trailing slash handling.
+    Tries to match the URL as-is first, then with/without trailing slash.
+    """
+    return url.rstrip('/')
+
+
+async def _get_reports_for_url(
+    url: str,
+    current_user: models.User,
+    db: Session
+) -> list[models.Report]:
+    """
+    Helper function to fetch reports for a URL with flexible matching.
+    Handles trailing slash variations.
+    """
+    # Try exact match first
+    reports = db.query(models.Report).filter(
+        models.Report.user_id == current_user.id,
+        models.Report.url == url
+    ).order_by(
+        models.Report.created_at.desc()
+    ).all()
+    
+    # If no exact match, try with/without trailing slash
+    if not reports:
+        normalized_url = _normalize_url(url)
+        # Try normalized URL
+        reports = db.query(models.Report).filter(
+            models.Report.user_id == current_user.id,
+            models.Report.url == normalized_url
+        ).all()
+        
+        # If still not found, try with trailing slash added
+        if not reports:
+            reports = db.query(models.Report).filter(
+                models.Report.user_id == current_user.id,
+                models.Report.url == f"{normalized_url}/"
+            ).order_by(
+                models.Report.created_at.desc()
+            ).all()
+    
+    return reports
+
+
 @router.get(
-    f"{settings.API_V1_PREFIX}/history/{{url:path}}",
+    f"{settings.API_V1_PREFIX}/history/by-url",
     response_model=list[schemas.ReportResponse],
     tags=["History"]
 )
@@ -302,20 +348,18 @@ async def get_url_history(
     Shows the progression of SEO scores over time for that URL.
     
     Args:
-        url: The URL to retrieve history for (full URL including protocol)
+        url: The URL to retrieve history for (query parameter, e.g., ?url=https://example.com)
         
     Returns:
         List of all reports for the specified URL
+        
+    Example:
+        GET /api/v1/history/by-url?url=https://example.com
     """
     logger.info(f"Fetching history for URL: {url} by user {current_user.email}")
     
     try:
-        reports = db.query(models.Report).filter(
-            models.Report.user_id == current_user.id,
-            models.Report.url == url
-        ).order_by(
-            models.Report.created_at.desc()
-        ).all()
+        reports = await _get_reports_for_url(url, current_user, db)
         
         if not reports:
             logger.warning(f"No reports found for URL: {url}")
@@ -327,9 +371,34 @@ async def get_url_history(
         logger.info(f"Found {len(reports)} reports for URL: {url}")
         return reports
         
+    except HTTPException:
+        raise
     except SQLAlchemyError as e:
         logger.error(f"Database error while fetching URL history: {e}")
         raise DatabaseException("Failed to retrieve URL history")
+
+
+@router.get(
+    f"{settings.API_V1_PREFIX}/history/{{url:path}}",
+    response_model=list[schemas.ReportResponse],
+    tags=["History"],
+    deprecated=True
+)
+async def get_url_history_legacy(
+    url: str,
+    db: Session = Depends(get_database),
+    current_user: models.User = Depends(get_authenticated_user),
+    _: bool = Depends(verify_api_key)
+):
+    """
+    DEPRECATED: Get all reports for a specific URL by the current user (legacy path parameter endpoint).
+    
+    Use /history/by-url?url=... instead.
+    
+    This endpoint exists for backward compatibility with older frontend versions.
+    """
+    logger.warning(f"Using deprecated path parameter endpoint for URL: {url}")
+    return await get_url_history(url, db, current_user, _)
 
 
 # ============================================================================
