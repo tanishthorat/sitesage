@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/AuthContext";
+import { useDashboard } from "@/contexts/DashboardContext";
 import NavLogo from "@/components/ui/NavLogo";
 import {
   Avatar,
@@ -37,7 +38,6 @@ import {
   IconWorld,
   IconLock,
 } from "@tabler/icons-react";
-import api, { apiEndpoints } from "@/lib/api";
 
 interface SidebarProps {
   selectedProject: string | null;
@@ -49,13 +49,10 @@ export default function Sidebar({
   onProjectChange,
 }: SidebarProps) {
   const { user, signOut } = useAuth();
+  const { projects, isLoadingProjects } = useDashboard();
   const router = useRouter();
   const pathname = usePathname();
-  const [projects, setProjects] = useState<
-    Array<{ url: string; last_updated: string }>
-  >([]);
   const [isMobile, setIsMobile] = useState(false);
-  const [isLoadingProjects, setIsLoadingProjects] = useState(true);
   const [isLoadingUser, setIsLoadingUser] = useState(true);
 
   // Drawer control for mobile
@@ -74,21 +71,8 @@ export default function Sidebar({
   }, []);
 
   useEffect(() => {
-    const fetchProjects = async () => {
-      try {
-        setIsLoadingProjects(true);
-        const response = await api.get(apiEndpoints.historyUnique);
-        setProjects(response.data);
-      } catch (err) {
-        console.error("Error fetching projects:", err);
-      } finally {
-        setIsLoadingProjects(false);
-      }
-    };
-
     if (user) {
       setIsLoadingUser(false);
-      fetchProjects();
     } else {
       setIsLoadingUser(true);
     }

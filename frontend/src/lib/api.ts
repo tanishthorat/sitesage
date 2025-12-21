@@ -8,6 +8,15 @@
 import axios from 'axios';
 import { auth } from './firebase';
 
+// Simple cache for GET requests
+interface CacheEntry {
+  data: any;
+  timestamp: number;
+}
+
+const cache = new Map<string, CacheEntry>();
+const CACHE_TTL = 30000; // 30 seconds cache
+
 // Create axios instance pointing to our Next.js proxy (not directly to backend)
 const api = axios.create({
   baseURL: '/api', // Route through Next.js BFF proxy
@@ -29,6 +38,21 @@ export const publicApi = axios.create({
 // Request interceptor to attach Firebase ID token
 api.interceptors.request.use(
   async (config) => {
+    // Check cache for GET requests
+    if (config.method === 'get' && config.url) {
+      const cacheKey = config.url;
+      const cached = cache.get(cacheKey);
+      
+      if (cached && Date.now() - cached.timestamp < CACHE_TTL) {
+        // Return cached response
+        return Promise.reject({
+          __CACHED__: true,
+          data: cached.data,
+          config,
+        });
+      }
+    }
+
     // Only try to get auth token in browser
     if (typeof window !== 'undefined' && auth) {
       const user = auth.currentUser;
@@ -50,8 +74,29 @@ api.interceptors.request.use(
 
 // Response interceptor for error handling
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    // Cache successful GET responses
+    if (response.config.method === 'get' && response.config.url) {
+      const cacheKey = response.config.url;
+      cache.set(cacheKey, {
+        data: response.data,
+        timestamp: Date.now(),
+      });
+    }
+    return response;
+  },
   async (error) => {
+    // Handle cached response
+    if (error.__CACHED__) {
+      return Promise.resolve({
+        data: error.data,
+        status: 200,
+        statusText: 'OK',
+        headers: {},
+        config: error.config,
+      });
+    }
+
     if (error.response?.status === 401) {
       // Token expired or invalid - refresh token
       // Only try to refresh in browser with auth available
@@ -74,6 +119,11 @@ api.interceptors.response.use(
 );
 
 export default api;
+
+// Helper function to clear cache (useful after mutations)
+export const clearApiCache = () => {
+  cache.clear();
+};
 
 // API Endpoints
 export const apiEndpoints = {
