@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 from typing import Optional
 import logging
+import os
+import json
 
 from .database import get_db
 from . import models
@@ -15,23 +17,84 @@ logger = logging.getLogger(__name__)
 
 # Initialize Firebase Admin SDK
 def initialize_firebase():
-    """Initialize Firebase Admin SDK with service account"""
+    """
+    Initialize Firebase Admin SDK with service account.
+    
+    Supports two methods (in priority order):
+    1. Environment variable: FIREBASE_SERVICE_ACCOUNT (JSON string)
+    2. File-based: serviceAccountKey.json (checks multiple paths)
+    """
     try:
         # Check if already initialized
         if not firebase_admin._apps:
-            service_account_path = Path(__file__).parent.parent / "serviceAccountKey.json"
+            cred = None
             
-            if not service_account_path.exists():
-                logger.warning("Firebase service account key not found. Authentication will be disabled.")
+            # Method 1: Try environment variable first (most reliable for production)
+            firebase_creds_json = os.getenv('FIREBASE_SERVICE_ACCOUNT')
+            if firebase_creds_json:
+                try:
+                    logger.info("Attempting to initialize Firebase from environment variable")
+                    creds_dict = json.loads(firebase_creds_json)
+                    cred = credentials.Certificate(creds_dict)
+                    logger.info("✓ Firebase credentials loaded from FIREBASE_SERVICE_ACCOUNT")
+                except json.JSONDecodeError as e:
+                    logger.error(f"Invalid JSON in FIREBASE_SERVICE_ACCOUNT: {e}")
+                except Exception as e:
+                    logger.error(f"Failed to load Firebase from env var: {e}")
+            
+            # Method 2: Try file-based credentials (for local dev and volume mounts)
+            if not cred:
+                possible_paths = [
+                    Path(__file__).parent.parent / "serviceAccountKey.json",  # /app/serviceAccountKey.json
+                    Path("/app/serviceAccountKey.json"),  # Absolute path (Docker volume mount)
+                    Path.cwd() / "serviceAccountKey.json",  # Current working directory
+                ]
+                
+                service_account_path = None
+                for path in possible_paths:
+                    logger.info(f"Checking for Firebase credentials at: {path}")
+                    if path.exists():
+                        service_account_path = path
+                        logger.info(f"✓ Found Firebase credentials at: {path}")
+                        break
+                    else:
+                        logger.debug(f"✗ Not found at: {path}")
+                
+                if service_account_path:
+                    try:
+                        cred = credentials.Certificate(str(service_account_path))
+                        logger.info(f"✓ Firebase credentials loaded from file: {service_account_path}")
+                    except Exception as e:
+                        logger.error(f"Failed to load credentials from {service_account_path}: {e}")
+            
+            # If still no credentials found, log detailed error
+            if not cred:
+                logger.error("=" * 60)
+                logger.error("Firebase service account key not found!")
+                logger.error("=" * 60)
+                logger.error(f"Current working directory: {os.getcwd()}")
+                logger.error(f"__file__ location: {__file__}")
+                logger.error(f"Parent directory: {Path(__file__).parent.parent}")
+                try:
+                    logger.error(f"Directory contents: {list(Path(__file__).parent.parent.iterdir())}")
+                except Exception:
+                    pass
+                logger.error("Environment variables: FIREBASE_SERVICE_ACCOUNT = " + 
+                           ("SET" if os.getenv('FIREBASE_SERVICE_ACCOUNT') else "NOT SET"))
+                logger.error("=" * 60)
+                logger.error("To fix this issue:")
+                logger.error("1. Set FIREBASE_SERVICE_ACCOUNT environment variable, OR")
+                logger.error("2. Mount serviceAccountKey.json to /app/serviceAccountKey.json")
+                logger.error("=" * 60)
                 return False
             
-            cred = credentials.Certificate(str(service_account_path))
+            # Initialize Firebase with the credentials
             firebase_admin.initialize_app(cred)
-            logger.info("Firebase Admin SDK initialized successfully")
+            logger.info("✓✓✓ Firebase Admin SDK initialized successfully ✓✓✓")
             return True
         return True
     except Exception as e:
-        logger.error(f"Failed to initialize Firebase: {e}")
+        logger.error(f"Failed to initialize Firebase: {e}", exc_info=True)
         return False
 
 # Initialize on module load
