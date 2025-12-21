@@ -77,7 +77,7 @@ export default function HomePage() {
   const validationState = useMemo(() => {
     if (!touched || !url) return undefined;
     return validateUrl(url) ? "valid" : "invalid";
-  }, [url, touched]);
+  }, [url, touched, validateUrl]);
 
   /**
    * Computed error message for inline validation feedback
@@ -88,7 +88,7 @@ export default function HomePage() {
       return "Please enter a valid URL (e.g., example.com or tanishdev.me)";
     }
     return "";
-  }, [url, touched]);
+  }, [url, touched, validateUrl]);
 
   /**
    * Handle input change with immediate validation

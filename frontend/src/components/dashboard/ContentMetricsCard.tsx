@@ -6,7 +6,6 @@ import {
   IconH1,
   IconH2,
   IconPhoto,
-  IconChevronDown,
   IconTrendingUp,
   IconTrendingDown,
   IconMinus,

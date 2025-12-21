@@ -1,7 +1,7 @@
 // components/dashboard/cards/GaugeCard.tsx
 "use client";
 
-import { useEffect, useRef, ReactNode } from "react";
+import { useEffect, useRef, ReactNode, useMemo } from "react";
 import * as echarts from "echarts/core";
 import { GaugeChart } from "echarts/charts";
 import { CanvasRenderer } from "echarts/renderers";
@@ -104,7 +104,8 @@ export default function GaugeCard({
     axisLabelFontSize: 14,
   };
 
-  const config = { ...defaultGaugeConfig, ...gaugeConfig };
+  // Memoize config to prevent recreation on every render
+  const config = useMemo(() => ({ ...defaultGaugeConfig, ...gaugeConfig }), [gaugeConfig]);
 
   useEffect(() => {
     if (!chartRef.current) return;

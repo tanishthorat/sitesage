@@ -1,7 +1,7 @@
 // components/dashboard/HistorySection.tsx
 "use client"
 
-import { IconChevronLeft, IconChevronRight, IconRefresh } from '@tabler/icons-react'
+import { IconRefresh } from '@tabler/icons-react'
 import { Report } from '@/types/api'
 import { useRef, useState, useEffect } from 'react'
 import { Button, Tabs, Tab, ScrollShadow } from '@heroui/react'
@@ -15,8 +15,6 @@ interface HistorySectionProps {
 
 export default function HistorySection({ history, selectedReport, onSelectReport, onAnalyzeAgain }: HistorySectionProps) {
   const scrollContainerRef = useRef<HTMLDivElement>(null)
-  const [showLeftArrow, setShowLeftArrow] = useState(false)
-  const [showRightArrow, setShowRightArrow] = useState(false)
   const [isAnalyzing, setIsAnalyzing] = useState(false)
 
   const formatTabDate = (dateString: string) => {

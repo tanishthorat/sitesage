@@ -31,19 +31,22 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
+  
+  // Derive loading state - true only if we haven't checked auth yet
+  const loading = !authChecked;
 
   useEffect(() => {
     // Only run in browser
     if (typeof window === 'undefined' || !auth) {
-      setLoading(false);
+      setAuthChecked(true);
       return;
     }
 
     // Subscribe to auth state changes
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
-      setLoading(false);
+      setAuthChecked(true);
 
       // Set/clear auth cookie for middleware
       if (user) {

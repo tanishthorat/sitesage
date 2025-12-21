@@ -10,7 +10,7 @@ import { auth } from './firebase';
 
 // Simple cache for GET requests
 interface CacheEntry {
-  data: any;
+  data: unknown;
   timestamp: number;
 }
 

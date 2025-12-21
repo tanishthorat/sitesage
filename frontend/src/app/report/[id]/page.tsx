@@ -7,7 +7,6 @@ import { Button, Skeleton } from "@heroui/react";
 import { Report } from "@/types/api";
 import AppNavbar from "@/components/Navbar";
 import MetricsGrid from "@/components/dashboard/MetricsGrid";
-import AIInsightsCard from "@/components/dashboard/AIInsightsCard";
 import { IconDownload, IconLock } from "@tabler/icons-react";
 import {
   fetchReportById,

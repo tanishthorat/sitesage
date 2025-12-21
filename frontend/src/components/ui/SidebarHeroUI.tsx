@@ -18,7 +18,6 @@ import {
   Divider,
   Drawer,
   DrawerContent,
-  DrawerHeader,
   DrawerBody,
   useDisclosure,
   Skeleton,
@@ -26,15 +25,12 @@ import {
 import {
   IconChartBar,
   IconFileText,
-  IconSearch,
   IconBulb,
-  IconChartLine,
   IconKey,
   IconSettings,
   IconChevronDown,
   IconLogout,
   IconMenu2,
-  IconX,
   IconWorld,
   IconLock,
 } from "@tabler/icons-react";
@@ -53,7 +49,7 @@ export default function Sidebar({
   const router = useRouter();
   const pathname = usePathname();
   const [isMobile, setIsMobile] = useState(false);
-  const [isLoadingUser, setIsLoadingUser] = useState(true);
+  const isLoadingUser = !user;
 
   // Drawer control for mobile
   const { isOpen, onOpen, onClose } = useDisclosure();
@@ -69,14 +65,6 @@ export default function Sidebar({
 
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
-
-  useEffect(() => {
-    if (user) {
-      setIsLoadingUser(false);
-    } else {
-      setIsLoadingUser(true);
-    }
-  }, [user]);
 
   const navItems = [
     {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useDashboard } from "@/contexts/DashboardContext";
 import { useRouter } from "next/navigation";
@@ -20,7 +20,6 @@ export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
   const { selectedProject, setSelectedProject, projects, refreshProjects } = useDashboard();
-  const [latestReport, setLatestReport] = useState<Report | null>(null);
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [recentScans, setRecentScans] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -77,7 +76,7 @@ export default function DashboardPage() {
     return "Failed to load dashboard data";
   };
 
-  const fetchDashboardData = async (projectUrl?: string) => {
+  const fetchDashboardData = useCallback(async (projectUrl?: string) => {
     if (!user || authLoading || isFetchingRef.current) return;
 
     try {
@@ -103,7 +102,6 @@ export default function DashboardPage() {
 
         if (reports && reports.length > 0) {
           // Latest report is the first one (sorted by date desc)
-          setLatestReport(reports[0]);
           setSelectedReport(reports[0]);
           // Last 10 scans for history tabs
           setRecentScans(reports.slice(0, 10));
@@ -112,7 +110,6 @@ export default function DashboardPage() {
       } else {
         // No projects found - this is not an error, it's an empty state
         setIsEmpty(true);
-        setLatestReport(null);
         setSelectedReport(null);
         setRecentScans([]);
       }
@@ -130,7 +127,6 @@ export default function DashboardPage() {
       }
 
       // Set empty state for fallback
-      setLatestReport(null);
       setSelectedReport(null);
       setRecentScans([]);
     } finally {
@@ -138,7 +134,7 @@ export default function DashboardPage() {
       hasLoadedRef.current = true;
       isFetchingRef.current = false;
     }
-  };
+  }, [user, authLoading, projects, selectedProject, setSelectedProject]);
 
   // Fetch data when projects are loaded
   useEffect(() => {
@@ -152,7 +148,7 @@ export default function DashboardPage() {
     if (!hasLoadedRef.current && projects.length > 0) {
       fetchDashboardData();
     }
-  }, [user, authLoading, router, projects]);
+  }, [user, authLoading, router, projects, fetchDashboardData]);
 
   // Separate effect for selectedProject changes after initial load
   useEffect(() => {
@@ -160,7 +156,7 @@ export default function DashboardPage() {
     if (hasLoadedRef.current && selectedProject && !isFetchingRef.current) {
       fetchDashboardData(selectedProject);
     }
-  }, [selectedProject]);
+  }, [selectedProject, fetchDashboardData]);
 
   const handleRefresh = async () => {
     if (isFetchingRef.current) return;
