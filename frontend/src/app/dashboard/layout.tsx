@@ -3,13 +3,13 @@
 
 import Sidebar from '@/components/ui/SidebarHeroUI'
 import { ReactNode } from 'react'
-import { DashboardProvider, useDashboard } from '@/contexts/DashboardContext'
+import { useDashboard } from '@/contexts/DashboardContext'
 
 interface DashboardLayoutProps {
   children: ReactNode
 }
 
-function DashboardLayoutContent({ children }: DashboardLayoutProps) {
+export default function DashboardLayout({ children }: DashboardLayoutProps) {
   const { selectedProject, setSelectedProject } = useDashboard()
 
   const handleProjectChange = (url: string) => {
@@ -30,13 +30,5 @@ function DashboardLayoutContent({ children }: DashboardLayoutProps) {
         </div>
       </main>
     </div>
-  )
-}
-
-export default function DashboardLayout({ children }: DashboardLayoutProps) {
-  return (
-    <DashboardProvider>
-      <DashboardLayoutContent>{children}</DashboardLayoutContent>
-    </DashboardProvider>
   )
 }

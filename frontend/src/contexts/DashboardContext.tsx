@@ -49,13 +49,17 @@ export function DashboardProvider({ children }: DashboardProviderProps) {
       setHasFetchedProjects(true)
     } catch (err) {
       console.error('Error fetching projects:', err)
+      setProjects([]) // Set empty array on error
     } finally {
       setIsLoadingProjects(false)
     }
   }, [user, isLoadingProjects])
 
-  // Fetch projects once when user is available
+  // Fetch projects once when user is available (client-side only)
   useEffect(() => {
+    // Skip during SSR
+    if (typeof window === 'undefined') return
+    
     if (user && !hasFetchedProjects && !isLoadingProjects) {
       refreshProjects()
     }
