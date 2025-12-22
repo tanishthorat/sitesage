@@ -49,7 +49,22 @@ def analyze_with_ai(metrics: dict):
         # Clean up if the model adds markdown backticks by mistake
         response_text = response_text.replace("```json", "").replace("```", "").strip()
         
-        return json.loads(response_text)
+        # Try to parse JSON
+        try:
+            return json.loads(response_text)
+        except json.JSONDecodeError as json_err:
+            # If JSON parsing fails, try to find JSON within the text
+            # Look for content between { and }
+            import re
+            json_match = re.search(r'\{.*\}', response_text, re.DOTALL)
+            if json_match:
+                try:
+                    return json.loads(json_match.group(0))
+                except:
+                    pass
+            
+            # If all parsing fails, return error with partial response
+            raise Exception(f"Invalid JSON response: {str(json_err)}")
         
     except Exception as e:
         print(f"AI Error: {e}")

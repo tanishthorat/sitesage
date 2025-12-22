@@ -1,9 +1,10 @@
 'use client';
 
 import React from 'react';
-import { Button } from '@heroui/react';
+import { Button, Spinner } from '@heroui/react';
 import { IconDownload } from '@tabler/icons-react';
 import { Report } from '@/types/api';
+import { hasLighthouseMetrics, isLighthousePending } from '@/services/reportService';
 import type { PDFDownloadLink as PDFDownloadLinkType } from '@react-pdf/renderer';
 
 // Client-side only PDF components
@@ -27,6 +28,11 @@ interface PDFDownloadButtonProps {
 export default function PDFDownloadButton({ report }: PDFDownloadButtonProps) {
   const [isReady, setIsReady] = React.useState<boolean>(false);
 
+  // Check lighthouse status
+  const isPending = isLighthousePending(report);
+  const hasMetrics = hasLighthouseMetrics(report);
+  const isFailed = report.lighthouse_status === 'failed';
+
   React.useEffect(() => {
     // Wait for components to load
     const checkLoaded = setInterval(() => {
@@ -39,6 +45,7 @@ export default function PDFDownloadButton({ report }: PDFDownloadButtonProps) {
     return () => clearInterval(checkLoaded);
   }, []);
 
+  // Show loading state while PDF components are loading
   if (!isReady || !PDFDownloadLink || !SiteSageReportPDF) {
     return (
       <Button
@@ -49,6 +56,37 @@ export default function PDFDownloadButton({ report }: PDFDownloadButtonProps) {
         isDisabled
       >
         Loading PDF...
+      </Button>
+    );
+  }
+
+  // Show pending state while lighthouse metrics are loading
+  if (isPending) {
+    return (
+      <Button
+        color="secondary"
+        size="md"
+        startContent={<Spinner size="sm" color="white" />}
+        className="w-full sm:w-auto"
+        isDisabled
+      >
+        Loading pdf...
+      </Button>
+    );
+  }
+
+  // Show disabled state if lighthouse failed (no metrics available)
+  if (isFailed || !hasMetrics) {
+    return (
+      <Button
+        color="secondary"
+        size="md"
+        startContent={<IconDownload size={20} />}
+        className="w-full sm:w-auto"
+        isDisabled
+        title="Lighthouse metrics unavailable"
+      >
+        Export PDF (Metrics Unavailable)
       </Button>
     );
   }

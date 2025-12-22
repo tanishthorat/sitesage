@@ -214,6 +214,7 @@ export const exampleReportData: Report = {
   lighthouse_accessibility: 92,
   lighthouse_seo: 88,
   lighthouse_best_practices: 85,
+  lighthouse_status: 'completed',
   robots_txt_exists: true,
   sitemap_exists: true,
   og_tags_present: true,
