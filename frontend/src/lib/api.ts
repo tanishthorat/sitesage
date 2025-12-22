@@ -23,7 +23,6 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000, // 15 second timeout
 });
 
 // Create a public API instance that doesn't require authentication
@@ -32,7 +31,6 @@ export const publicApi = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  timeout: 15000, // 15 second timeout
 });
 
 // Request interceptor to attach Firebase ID token

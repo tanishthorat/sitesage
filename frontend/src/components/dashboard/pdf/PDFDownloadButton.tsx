@@ -57,19 +57,20 @@ export default function PDFDownloadButton({ report }: PDFDownloadButtonProps) {
 
   return (
     <PDFDownloadLink
-      document={<SiteSageReportPDF data={report} />}
+      key={`pdf-link-${report.id}-${report.created_at}`}
+      document={<SiteSageReportPDF key={`pdf-doc-${report.id}-${report.created_at}`} data={report} />}
       fileName={fileName}
     >
       {({ loading }: { loading: boolean }) => (
         <Button
           color="secondary"
-          size="lg"
+          size="md"
           startContent={<IconDownload size={20} />}
           className="w-full sm:w-auto"
           isLoading={loading}
           isDisabled={loading}
         >
-          {loading ? 'Generating PDF...' : 'Export PDF Report'}
+          {loading ? 'Generating PDF...' : 'Export PDF'}
         </Button>
       )}
     </PDFDownloadLink>

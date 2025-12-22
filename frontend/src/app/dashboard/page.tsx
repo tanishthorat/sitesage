@@ -8,6 +8,7 @@ import api, { apiEndpoints, clearApiCache } from "@/lib/api";
 import { Report } from "@/types/api";
 import MetricsGrid from "@/components/dashboard/MetricsGrid";
 import HistorySection from "@/components/dashboard/HistorySection";
+import PDFDownloadButton from "@/components/dashboard/pdf/PDFDownloadButton";
 import {
   IconRefresh,
   IconPlus,
@@ -19,7 +20,8 @@ import { Button, Skeleton, Spinner } from "@heroui/react";
 export default function DashboardPage() {
   const { user, loading: authLoading } = useAuth();
   const router = useRouter();
-  const { selectedProject, setSelectedProject, projects, refreshProjects } = useDashboard();
+  const { selectedProject, setSelectedProject, projects, refreshProjects } =
+    useDashboard();
   const [selectedReport, setSelectedReport] = useState<Report | null>(null);
   const [recentScans, setRecentScans] = useState<Report[]>([]);
   const [loading, setLoading] = useState(true);
@@ -76,65 +78,68 @@ export default function DashboardPage() {
     return "Failed to load dashboard data";
   };
 
-  const fetchDashboardData = useCallback(async (projectUrl?: string) => {
-    if (!user || authLoading || isFetchingRef.current) return;
+  const fetchDashboardData = useCallback(
+    async (projectUrl?: string) => {
+      if (!user || authLoading || isFetchingRef.current) return;
 
-    try {
-      isFetchingRef.current = true;
-      setLoading(true);
-      setError("");
-      setIsEmpty(false);
+      try {
+        isFetchingRef.current = true;
+        setLoading(true);
+        setError("");
+        setIsEmpty(false);
 
-      // Use projects from context instead of fetching again
-      if (projects && projects.length > 0) {
-        // Use provided projectUrl or default to first URL or currently selected
-        const targetUrl = projectUrl || selectedProject || projects[0].url;
+        // Use projects from context instead of fetching again
+        if (projects && projects.length > 0) {
+          // Use provided projectUrl or default to first URL or currently selected
+          const targetUrl = projectUrl || selectedProject || projects[0].url;
 
-        if (!selectedProject) {
-          setSelectedProject(targetUrl);
+          if (!selectedProject) {
+            setSelectedProject(targetUrl);
+          }
+
+          // Get the URL's full history
+          const reportsResponse = await api.get(
+            apiEndpoints.historyByUrl(targetUrl)
+          );
+          const reports = reportsResponse.data;
+
+          if (reports && reports.length > 0) {
+            // Latest report is the first one (sorted by date desc)
+            setSelectedReport(reports[0]);
+            // Last 10 scans for history tabs
+            setRecentScans(reports.slice(0, 10));
+            setIsEmpty(false);
+          }
+        } else {
+          // No projects found - this is not an error, it's an empty state
+          setIsEmpty(true);
+          setSelectedReport(null);
+          setRecentScans([]);
+        }
+      } catch (err: unknown) {
+        const errorObj = err as Error & { response?: { status: number } };
+
+        // Check if it's a 404 (no projects) vs actual error
+        if (errorObj.response?.status === 404) {
+          setIsEmpty(true);
+          setError("");
+        } else {
+          const errorMsg = getErrorMessage(err);
+          console.error("Error fetching dashboard data:", err);
+          setError(errorMsg);
         }
 
-        // Get the URL's full history
-        const reportsResponse = await api.get(
-          apiEndpoints.historyByUrl(targetUrl)
-        );
-        const reports = reportsResponse.data;
-
-        if (reports && reports.length > 0) {
-          // Latest report is the first one (sorted by date desc)
-          setSelectedReport(reports[0]);
-          // Last 10 scans for history tabs
-          setRecentScans(reports.slice(0, 10));
-          setIsEmpty(false);
-        }
-      } else {
-        // No projects found - this is not an error, it's an empty state
-        setIsEmpty(true);
+        // Set empty state for fallback
         setSelectedReport(null);
         setRecentScans([]);
+      } finally {
+        setLoading(false);
+        hasLoadedRef.current = true;
+        isFetchingRef.current = false;
       }
-    } catch (err: unknown) {
-      const errorObj = err as Error & { response?: { status: number } };
-
-      // Check if it's a 404 (no projects) vs actual error
-      if (errorObj.response?.status === 404) {
-        setIsEmpty(true);
-        setError("");
-      } else {
-        const errorMsg = getErrorMessage(err);
-        console.error("Error fetching dashboard data:", err);
-        setError(errorMsg);
-      }
-
-      // Set empty state for fallback
-      setSelectedReport(null);
-      setRecentScans([]);
-    } finally {
-      setLoading(false);
-      hasLoadedRef.current = true;
-      isFetchingRef.current = false;
-    }
-  }, [user, authLoading, projects, selectedProject, setSelectedProject]);
+    },
+    [user, authLoading, projects, selectedProject, setSelectedProject]
+  );
 
   // Fetch data when projects are loaded
   useEffect(() => {
@@ -188,12 +193,29 @@ export default function DashboardPage() {
         url: selectedProject,
       });
 
+      // Wait for backend to process and save the new report
+      await new Promise((resolve) => setTimeout(resolve, 2000));
+
       // Clear cache to force fresh data
       clearApiCache();
-      
-      // Refresh projects list and dashboard data
-      await refreshProjects();
-      await fetchDashboardData(selectedProject);
+
+      // Fetch fresh data directly without clearing current state (prevents flicker)
+      try {
+        const reportsResponse = await api.get(
+          apiEndpoints.historyByUrl(selectedProject)
+        );
+        const reports = reportsResponse.data;
+
+        if (reports && reports.length > 0) {
+          // Latest report is the first one (sorted by date desc)
+          setSelectedReport(reports[0]);
+          // Last 10 scans for history tabs
+          setRecentScans(reports.slice(0, 10));
+        }
+      } catch (fetchErr) {
+        console.error("Error fetching updated report:", fetchErr);
+        setError("Failed to fetch updated report. Please refresh the page.");
+      }
     } catch (err: unknown) {
       const errorMsg = getErrorMessage(err);
       console.error("Error analyzing URL:", err);
@@ -230,18 +252,14 @@ export default function DashboardPage() {
               </p>
             </div>
             <div className="flex items-center gap-2 sm:gap-3 w-full sm:w-auto">
-              {/* for pdf export  */}
-              {/* <Button
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="flex-1 sm:flex-none px-3 sm:px-4 py-2 sm:py-2.5 border border-neutral-300 dark:border-neutral-600 rounded-lg text-xs sm:text-sm font-medium text-neutral-700 dark:text-neutral-300 hover:bg-neutral-50 dark:hover:bg-neutral-700 transition-colors flex items-center justify-center gap-2"
-              >
-                <IconRefresh
-                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
+              {selectedReport && (
+                <PDFDownloadButton
+                  key={`pdf-${selectedReport.id}-${
+                    selectedReport.created_at
+                  }-${Date.now()}`}
+                  report={selectedReport}
                 />
-                <span className="hidden sm:inline">Full Report</span>
-                <span className="sm:hidden">Report</span>
-              </Button> */}
+              )}
               <Button
                 onPress={handleNewAnalysis}
                 color="primary"

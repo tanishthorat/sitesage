@@ -8,8 +8,10 @@ import {
   Svg,
   Circle,
   Path,
+  Image,
 } from "@react-pdf/renderer";
 import { Report } from "@/types/api";
+import { style } from "framer-motion/client";
 
 interface CircularScoreProps {
   score: number;
@@ -344,7 +346,16 @@ const CircularScore: React.FC<CircularScoreProps> = ({ score, color }) => {
   // Calculate the arc parameters
   const radius = 15.9155;
   const circumference = 2 * Math.PI * radius;
-  const dashLength = (score / 100) * circumference;
+  // Ensure dashLength is valid: clamp between 0.1 and circumference, round to avoid floating point issues
+  const clampedScore = Math.max(0, Math.min(100, score));
+  const dashLength = Math.max(
+    0.1,
+    Math.round((clampedScore / 100) * circumference * 100) / 100
+  );
+  const gapLength = Math.max(
+    0.1,
+    Math.round((circumference - dashLength) * 100) / 100
+  );
 
   return (
     <View
@@ -361,16 +372,18 @@ const CircularScore: React.FC<CircularScoreProps> = ({ score, color }) => {
           strokeWidth="3.5"
         />
         {/* Colored progress circle */}
-        <Circle
-          cx="18"
-          cy="18"
-          r={radius}
-          fill="none"
-          stroke={strokeColor}
-          strokeWidth="3.5"
-          strokeDasharray={`${dashLength},${circumference}`}
-          strokeLinecap="round"
-        />
+        {clampedScore > 0 && (
+          <Circle
+            cx="18"
+            cy="18"
+            r={radius}
+            fill="none"
+            stroke={strokeColor}
+            strokeWidth="3.5"
+            strokeDasharray={`${dashLength} ${gapLength}`}
+            strokeLinecap="round"
+          />
+        )}
       </Svg>
       <View
         style={{
@@ -499,7 +512,10 @@ const SiteSageReportPDF: React.FC<SiteSageReportPDFProps> = ({ data }) => {
         <View style={styles.header}>
           <View style={styles.headerLeft}>
             <View>
-              <Text style={styles.headerTitle}>SITESAGE</Text>
+              <Image
+                src={"https://assets.tanishdev.me/logo-horizontal-white.png"}
+                style={styles.headerLogo}
+              />
               <Text style={styles.headerSubtext}>
                 Generated on {reportData.generatedDate}
               </Text>
