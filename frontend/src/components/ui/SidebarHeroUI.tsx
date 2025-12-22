@@ -390,10 +390,10 @@ export default function Sidebar({
                 key="logout"
                 startContent={<IconLogout size={18} />}
                 color="danger"
-                className="text-red-600 dark:text-red-400"
+         
                 onPress={handleLogout}
               >
-                Sign Out
+                Log Out
               </DropdownItem>
             </DropdownMenu>
           </Dropdown>
@@ -472,10 +472,9 @@ export default function Sidebar({
                   key="logout"
                   startContent={<IconLogout size={18} />}
                   color="danger"
-                  className="text-red-600 dark:text-red-400"
                   onPress={handleLogout}
                 >
-                  Sign Out
+                  Log Out
                 </DropdownItem>
               </DropdownMenu>
             </Dropdown>
