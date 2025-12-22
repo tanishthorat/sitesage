@@ -76,6 +76,19 @@ export default function LighthouseChart({
   const chartInstanceRef = useRef<echarts.ECharts | null>(null)
   const [filterMode, setFilterMode] = useState<'latest' | 'all'>('all')
 
+  // defensive defaults in case parent passes null/undefined
+  const safeHistory = Array.isArray(history) ? history : []
+  const hasAnyScore = [performance, accessibility, seo, bestPractices].some(
+    (v) => v !== null && v !== undefined
+  )
+  // consider history 'present' only if at least one entry contains a numeric lighthouse value
+  const historyHasValues = safeHistory.some((h) =>
+    [h.lighthouse_performance, h.lighthouse_accessibility, h.lighthouse_seo, h.lighthouse_best_practices].some(
+      (v) => v !== null && v !== undefined
+    )
+  )
+  const showEmptyState = !loading && !hasAnyScore && !historyHasValues
+
   const scores = {
     performance,
     accessibility,
@@ -86,6 +99,15 @@ export default function LighthouseChart({
   useEffect(() => {
     if (!chartRef.current) return
 
+    // If there's no data to show, ensure any existing chart is disposed and skip init
+    if (showEmptyState) {
+      if (chartInstanceRef.current) {
+        chartInstanceRef.current.dispose()
+        chartInstanceRef.current = null
+      }
+      return
+    }
+
     const instance = echarts.init(chartRef.current, undefined, {
       renderer: 'canvas'
     })
@@ -93,7 +115,7 @@ export default function LighthouseChart({
 
     // Determine how many data points to show based on filter mode
     const dataPoints = filterMode === 'latest' ? 1 : 7
-    const historyData = history.slice(0, dataPoints).reverse()
+    const historyData = safeHistory.slice(0, dataPoints).reverse()
 
     // Prepare historical data for bars
     const dates = historyData.map((item) => {
@@ -103,10 +125,10 @@ export default function LighthouseChart({
       return `${dateStr}\n${timeStr}`
     })
 
-    const perfData = historyData.map(h => h.lighthouse_performance)
-    const accessData = historyData.map(h => h.lighthouse_accessibility)
-    const seoData = historyData.map(h => h.lighthouse_seo)
-    const bpData = historyData.map(h => h.lighthouse_best_practices)
+    const perfData = historyData.map(h => (h.lighthouse_performance != null ? h.lighthouse_performance : null))
+    const accessData = historyData.map(h => (h.lighthouse_accessibility != null ? h.lighthouse_accessibility : null))
+    const seoData = historyData.map(h => (h.lighthouse_seo != null ? h.lighthouse_seo : null))
+    const bpData = historyData.map(h => (h.lighthouse_best_practices != null ? h.lighthouse_best_practices : null))
 
     const option = {
       tooltip: {
@@ -237,101 +259,97 @@ export default function LighthouseChart({
 
       <CardBody className={`relative ${cardPadding}`}>
         <div className="space-y-4">
-          {/* Header with Dropdown */}
+          {/* Header with Dropdown - always show label even while loading */}
           <div className="flex items-start justify-between">
-            {loading ? (
-              <>
-                <div className="space-y-1">
-                  <Skeleton className="h-6 w-32 rounded" />
-                  <Skeleton className="h-3 w-24 rounded" />
-                </div>
-                <Skeleton className="h-8 w-20 rounded" />
-              </>
-            ) : (
-              <>
-                <div className="space-y-1">
-                  <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
-                  <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
-                </div>
+            <div className="space-y-1">
+              <p className={`font-bold ${labelSize} ${labelColor}`}>{label}</p>
+              {loading ? (
+                <Skeleton className="h-3 w-24 rounded" />
+              ) : (
+                <p className={`${subtitleSize} ${subtitleColor}`}>{subtitle}</p>
+              )}
+            </div>
 
-                {/* Filter Dropdown */}
-                <Dropdown>
-                  <DropdownTrigger>
-                    <Button
-                      isIconOnly
-                      className="bg-neutral-800/50 hover:bg-neutral-700/50 border border-neutral-700/50 text-neutral-300"
-                      size="sm"
-                    >
-                      <IconChevronDown size={18} />
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownMenu
-                    aria-label="Filter metrics"
-                    selectedKeys={[filterMode]}
-                    onSelectionChange={(keys) => {
-                      const selected = Array.from(keys)[0] as string
-                      setFilterMode(selected as 'latest' | 'all')
-                    }}
-                    className="bg-neutral-900 border border-neutral-800"
+            {/* Right side: show skeleton while loading, otherwise the dropdown */}
+            {loading ? (
+              <Skeleton className="h-8 w-20 rounded" />
+            ) : (
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button
+                    isIconOnly
+                    className="bg-neutral-800/50 hover:bg-neutral-700/50 border border-neutral-700/50 text-neutral-300"
+                    size="sm"
                   >
-                    <DropdownItem
-                      key="latest"
-                      className={`${filterMode === 'latest' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
-                    >
-                      Latest Metric Only
-                    </DropdownItem>
-                    <DropdownItem
-                      key="all"
-                      className={`${filterMode === 'all' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
-                    >
-                      View History (7 Days)
-                    </DropdownItem>
-                  </DropdownMenu>
-                </Dropdown>
-              </>
+                    <IconChevronDown size={18} />
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  aria-label="Filter metrics"
+                  selectedKeys={[filterMode]}
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as string
+                    setFilterMode(selected as 'latest' | 'all')
+                  }}
+                  className="bg-neutral-900 border border-neutral-800"
+                >
+                  <DropdownItem
+                    key="latest"
+                    className={`${filterMode === 'latest' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
+                  >
+                    Latest Metric Only
+                  </DropdownItem>
+                  <DropdownItem
+                    key="all"
+                    className={`${filterMode === 'all' ? 'bg-neutral-800' : ''} text-neutral-300 hover:bg-neutral-800`}
+                  >
+                    View History (7 Days)
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
             )}
           </div>
 
-          {/* Chart */}
-          <div className="relative mx-auto w-full">
-            {loading ? (
-              <Skeleton className={`w-full ${chartHeight} rounded-lg`} />
-            ) : (
-              <div ref={chartRef} className={`w-full ${chartHeight}`} />
-            )}
-          </div>
-
-          {/* Scores Display */}
+          {/* Chart & Scores (with empty-state handling) */}
           {loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="h-16 rounded-lg" />
-              ))}
+            <div className="relative mx-auto w-full">
+              <Skeleton className={`w-full ${chartHeight} rounded-lg`} />
+            </div>
+          ) : showEmptyState ? (
+            <div className={`w-full ${chartHeight} rounded-lg border border-dashed border-neutral-800/40 p-6 flex flex-col items-center justify-center text-center gap-2`}>
+              <p className="text-sm font-medium text-neutral-200">No Lighthouse data available</p>
+              <p className="text-xs text-neutral-500">Run an analysis to populate performance, accessibility, SEO, and best practices scores.</p>
             </div>
           ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
-              {lighthouseMetrics.map((metric) => {
-                const value = scores[metric.key as keyof typeof scores]
-                return (
-                  <div key={metric.label} className="space-y-2">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-2xl font-bold" style={{ color: metric.color }}>
-                        {value !== null ? Math.round(value) : '—'}
-                      </span>
-                      <span className="text-xs text-neutral-400">/100</span>
+            <>
+              <div className="relative mx-auto w-full">
+                <div ref={chartRef} className={`w-full ${chartHeight}`} />
+              </div>
+
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 pt-2">
+                {lighthouseMetrics.map((metric) => {
+                  const value = scores[metric.key as keyof typeof scores]
+                  return (
+                    <div key={metric.label} className="space-y-2">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-2xl font-bold" style={{ color: metric.color }}>
+                          {value !== null && value !== undefined ? Math.round(value) : '—'}
+                        </span>
+                        <span className="text-xs text-neutral-400">/100</span>
+                      </div>
+                      <p className="text-xs text-neutral-300">{metric.label}</p>
+                      {value !== null && value !== undefined && (
+                        <Progress
+                          value={value}
+                          className="h-1.5"
+                          color={metric.color === '#8b5cf6' ? 'secondary' : metric.color === '#10b981' ? 'success' : metric.color === '#3b82f6' ? 'primary' : 'warning'}
+                        />
+                      )}
                     </div>
-                    <p className="text-xs text-neutral-300">{metric.label}</p>
-                    {value !== null && (
-                      <Progress
-                        value={value}
-                        className="h-1.5"
-                        color={metric.color === '#8b5cf6' ? 'secondary' : metric.color === '#10b981' ? 'success' : metric.color === '#3b82f6' ? 'primary' : 'warning'}
-                      />
-                    )}
-                  </div>
-                )
-              })}
-            </div>
+                  )
+                })}
+              </div>
+            </>
           )}
 
           {/* Top Keywords Cloud */}

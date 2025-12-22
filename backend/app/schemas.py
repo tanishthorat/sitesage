@@ -54,6 +54,8 @@ class ReportResponse(ReportBase):
     lighthouse_accessibility: Optional[float]
     lighthouse_seo: Optional[float]
     lighthouse_best_practices: Optional[float]
+    # Lighthouse fetch status: 'pending' | 'completed' | 'failed'
+    lighthouse_status: Optional[str]
 
     class Config:
         from_attributes = True

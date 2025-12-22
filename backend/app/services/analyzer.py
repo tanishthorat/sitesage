@@ -173,6 +173,13 @@ def _create_report(
         ai_summary=ai_result.get('summary', 'AI Analysis Unavailable'),
         ai_suggestions=processed_suggestions
     )
+
+    # Ensure the initial lighthouse status is 'pending'
+    try:
+        report.lighthouse_status = 'pending'
+    except Exception:
+        # In case the DB model does not have the field yet (prior to migration), ignore
+        pass
     
     db.add(report)
     db.commit()
@@ -207,12 +214,24 @@ async def fetch_and_update_lighthouse(report_id: int, url: str):
             report.lighthouse_accessibility = metrics.get("accessibility")
             report.lighthouse_seo = metrics.get("seo")
             report.lighthouse_best_practices = metrics.get("best_practices")
+            # mark status completed when metrics present
+            try:
+                report.lighthouse_status = 'completed'
+            except Exception:
+                pass
             db.commit()
             logger.info(f"Lighthouse metrics updated for report {report_id}")
         else:
             logger.warning(f"Report {report_id} not found for Lighthouse update")
     except Exception as e:
         logger.error(f"Failed to update Lighthouse metrics for report {report_id}: {e}")
-        db.rollback()
+        try:
+            # mark failed if possible
+            report = db.query(models.Report).filter(models.Report.id == report_id).first()
+            if report:
+                report.lighthouse_status = 'failed'
+                db.commit()
+        except Exception:
+            db.rollback()
     finally:
         db.close()

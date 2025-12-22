@@ -11,6 +11,7 @@ import { IconLock } from "@tabler/icons-react";
 import {
   fetchReportById,
   hasLighthouseMetrics,
+  isLighthousePending,
   pollLighthouseMetrics,
 } from "@/services/reportService";
 import PDFDownloadButton from "@/components/dashboard/pdf/PDFDownloadButton";
@@ -68,8 +69,12 @@ export default function ReportPage({ params }: ReportPageProps) {
         if (result.data) {
           setReport(result.data);
 
-          // Start polling for Lighthouse metrics if not loaded
-          if (!hasLighthouseMetrics(result.data)) {
+          // Check lighthouse status: if pending, show loading; if failed, show fallback
+          const isPending = isLighthousePending(result.data);
+          const hasMetrics = hasLighthouseMetrics(result.data);
+
+          // Start polling only if lighthouse is pending or metrics aren't loaded yet
+          if (isPending || !hasMetrics) {
             setLighthouseLoading(true);
 
             cleanupPollingRef.current = await pollLighthouseMetrics(
@@ -77,6 +82,10 @@ export default function ReportPage({ params }: ReportPageProps) {
               !!user,
               (updatedReport) => {
                 setReport(updatedReport);
+                // Stop loading when we get metrics or status changes from pending
+                if (hasLighthouseMetrics(updatedReport) || !isLighthousePending(updatedReport)) {
+                  setLighthouseLoading(false);
+                }
               },
               () => {
                 setLighthouseLoading(false);

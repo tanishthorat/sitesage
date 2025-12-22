@@ -63,3 +63,5 @@ class Report(Base):
     lighthouse_accessibility = Column(Float, nullable=True)
     lighthouse_seo = Column(Float, nullable=True)
     lighthouse_best_practices = Column(Float, nullable=True)
+    # Status of Lighthouse fetch: 'pending' | 'completed' | 'failed'
+    lighthouse_status = Column(String, default='pending', nullable=False)

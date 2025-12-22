@@ -84,10 +84,20 @@ export async function fetchReportById(
 }
 
 /**
+ * Check if Lighthouse metrics are still pending (being fetched)
+ */
+export function isLighthousePending(report: Report | null): boolean {
+  if (!report) return false;
+  return report.lighthouse_status === 'pending';
+}
+
+/**
  * Check if report has Lighthouse metrics loaded
  */
 export function hasLighthouseMetrics(report: Report | null): boolean {
   if (!report) return false;
+  if (report.lighthouse_status === 'completed') return true;
+  // fallback to numeric checks for compatibility
   return (
     report.lighthouse_performance !== null ||
     report.lighthouse_accessibility !== null ||

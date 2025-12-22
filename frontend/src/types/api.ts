@@ -30,6 +30,7 @@ export interface Report {
   lighthouse_accessibility: number | null;
   lighthouse_seo: number | null;
   lighthouse_best_practices: number | null;
+  lighthouse_status: string | null;
   robots_txt_exists: boolean;
   sitemap_exists: boolean;
   og_tags_present: boolean;
