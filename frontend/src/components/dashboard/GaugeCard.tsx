@@ -92,20 +92,20 @@ export default function GaugeCard({
   const chartRef = useRef<HTMLDivElement | null>(null);
   const chartInstanceRef = useRef<echarts.ECharts | null>(null);
 
-  // Default gauge configuration
-  const defaultGaugeConfig: GaugeConfig = {
-    progressColors: ["#87ce5b", "#60BE25", "#51a11f"],
-    trackColor: "#1e293b",
-    progressWidth: 24,
-    scoreColor: "#60BE25",
-    scoreFontSize: 48,
-    showAxisLabels: true,
-    axisLabelColor: "#9ca3af",
-    axisLabelFontSize: 14,
-  };
-
   // Memoize config to prevent recreation on every render
-  const config = useMemo(() => ({ ...defaultGaugeConfig, ...gaugeConfig }), [gaugeConfig]);
+  const config = useMemo(() => {
+    const defaultGaugeConfig: GaugeConfig = {
+      progressColors: ["#87ce5b", "#60BE25", "#51a11f"],
+      trackColor: "#1e293b",
+      progressWidth: 24,
+      scoreColor: "#60BE25",
+      scoreFontSize: 48,
+      showAxisLabels: true,
+      axisLabelColor: "#9ca3af",
+      axisLabelFontSize: 14,
+    };
+    return { ...defaultGaugeConfig, ...gaugeConfig };
+  }, [gaugeConfig]);
 
   useEffect(() => {
     if (!chartRef.current) return;

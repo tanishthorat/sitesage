@@ -31,7 +31,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
+  // Initialize authChecked to true on server (no window), false on client
+  const [authChecked, setAuthChecked] = useState(typeof window === 'undefined');
   
   // Derive loading state - true only if we haven't checked auth yet
   const loading = !authChecked;
@@ -39,7 +40,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     // Only run in browser
     if (typeof window === 'undefined' || !auth) {
-      setAuthChecked(true);
       return;
     }
 

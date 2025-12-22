@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, FormEvent, useMemo } from "react";
+import { useState, FormEvent, useMemo, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Input } from "@heroui/react";
 import api, { apiEndpoints } from "@/lib/api";
@@ -38,7 +38,7 @@ export default function HomePage() {
   /**
    * Validates URL format - lenient validation for better UX
    */
-  const validateUrl = (value: string): boolean => {
+  const validateUrl = useCallback((value: string): boolean => {
     if (!value) return false;
 
     const trimmedValue = value.trim();
@@ -69,7 +69,7 @@ export default function HomePage() {
         /^[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?(\.[a-zA-Z0-9]([a-zA-Z0-9-]*[a-zA-Z0-9])?)*\.[a-zA-Z]{2,}(\/.*)?$/;
       return domainPattern.test(trimmedValue);
     }
-  };
+  }, []);
 
   /**
    * Memoized validation state to prevent unnecessary re-renders

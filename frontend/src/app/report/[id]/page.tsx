@@ -7,12 +7,13 @@ import { Button, Skeleton } from "@heroui/react";
 import { Report } from "@/types/api";
 import AppNavbar from "@/components/Navbar";
 import MetricsGrid from "@/components/dashboard/MetricsGrid";
-import { IconDownload, IconLock } from "@tabler/icons-react";
+import { IconLock } from "@tabler/icons-react";
 import {
   fetchReportById,
   hasLighthouseMetrics,
   pollLighthouseMetrics,
 } from "@/services/reportService";
+import PDFDownloadButton from "@/components/dashboard/pdf/PDFDownloadButton";
 
 interface ReportPageProps {
   params: Promise<{ id: string }>;
@@ -106,14 +107,7 @@ export default function ReportPage({ params }: ReportPageProps) {
       router.push("/login");
       return;
     }
-
-    // User: Trigger PDF download
-    if (reportId) {
-      window.open(
-        `${process.env.NEXT_PUBLIC_API_URL}/reports/${reportId}/pdf`,
-        "_blank"
-      );
-    }
+    // PDF download handled by PDFDownloadLink component
   };
 
   if (loading) {
@@ -233,19 +227,31 @@ export default function ReportPage({ params }: ReportPageProps) {
                 })}
               </p>
             </div>
-            <div className="shrink-0">
-              <Button
-                color={user ? "secondary" : "default"}
-                size="lg"
-                onPress={handleExportPdf}
-                startContent={
-                  user ? <IconDownload size={20} /> : <IconLock size={20} />
-                }
-                className="w-full sm:w-auto"
-                isDisabled={true}
-              >
-                {user ? "Export PDF Report" : "Login to Export PDF"}
-              </Button>
+            <div className="shrink-0 flex gap-3">
+              {/* only for development */}
+              {/* {user && (
+                <Button
+                  color="default"
+                  size="lg"
+                  onPress={() => router.push(`/pdf-preview/${reportId}`)}
+                  className="w-full sm:w-auto"
+                >
+                  👁️ Preview PDF
+                </Button>
+              )} */}
+              {user ? (
+                <PDFDownloadButton report={report} />
+              ) : (
+                <Button
+                  color="default"
+                  size="lg"
+                  onPress={handleExportPdf}
+                  startContent={<IconLock size={20} />}
+                  className="w-full sm:w-auto"
+                >
+                  Login to Export PDF
+                </Button>
+              )}
             </div>
           </div>
         </div>

@@ -8,12 +8,26 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    esmExternals: 'loose',
+  },
   // Enable file watching in Docker (Windows/Mac)
-  webpack: (config) => {
+  webpack: (config, { isServer }) => {
     config.watchOptions = {
       poll: 1000,
       aggregateTimeout: 300,
     };
+    
+    // Handle @react-pdf/renderer and its dependencies
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        canvas: false,
+        encoding: false,
+        fs: false,
+      };
+    }
+    
     return config;
   },
 };
