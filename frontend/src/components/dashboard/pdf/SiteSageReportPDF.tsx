@@ -11,7 +11,6 @@ import {
   Image,
 } from "@react-pdf/renderer";
 import { Report } from "@/types/api";
-import { style } from "framer-motion/client";
 
 interface CircularScoreProps {
   score: number;
@@ -513,7 +512,7 @@ const SiteSageReportPDF: React.FC<SiteSageReportPDFProps> = ({ data }) => {
           <View style={styles.headerLeft}>
             <View>
               <Image
-                src={"https://assets.tanishdev.me/logo-horizontal-white.png"}
+                src={`https://assets.tanishdev.me/logo-horizontal-white.png?v=${new Date().getTime()}`}
                 style={styles.headerLogo}
               />
               <Text style={styles.headerSubtext}>
