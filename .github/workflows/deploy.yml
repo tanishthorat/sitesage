@@ -52,9 +52,6 @@ jobs:
             # Login to GHCR inside EC2
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Pull new image
-            docker pull ghcr.io/tanishthorat/sitesage-backend:latest
-            
             # Stop the old docker-compose container to free up port 8000 (Crucial!)
             docker stop sitesage_backend || true
             docker rm sitesage_backend || true
@@ -62,6 +59,12 @@ jobs:
             # Stop any previous versions of this CI/CD container
             docker stop api-server || true
             docker rm api-server || true
+
+            # Free disk space before pulling the next image
+            docker system prune -af || true
+
+            # Pull new image after cleanup so large layers can be registered successfully
+            docker pull ghcr.io/tanishthorat/sitesage-backend:latest
             
             # Run new container (Fixed Network and .env path)
             docker run -d \
@@ -72,6 +75,6 @@ jobs:
               --env-file /home/ubuntu/sitesage/backend/.env \
               -v /home/ubuntu/sitesage/backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro \
               ghcr.io/tanishthorat/sitesage-backend:latest
-              
-            # Cleanup old images
-            docker system prune -af --filter "until=24h"
+
+            # Cleanup stale images after the container is running
+            docker image prune -af --filter "until=24h" || true
