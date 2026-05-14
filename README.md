@@ -829,7 +829,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Tanish Thorat**
 - Website: [tanishdev.me](https://tanishdev.me)
-- GitHub: [@tanish0019](https://github.com/tanish0019)
+- GitHub: [@tanishthorat](https://github.com/tanishthorat)
 - Email: tanishthorat02@gmail.com
 
 ---
