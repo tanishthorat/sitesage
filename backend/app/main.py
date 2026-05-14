@@ -16,6 +16,9 @@ from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from contextlib import asynccontextmanager
+import subprocess
+import sys
+from pathlib import Path
 
 from .config import settings
 from .logger import logger
@@ -53,6 +56,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to initialize Firebase: {e}")
         # Continue without Firebase if serviceAccountKey.json is missing
+
+    # Apply database migrations before serving requests.
+    # This keeps the ORM model and the actual schema in sync, which prevents
+    # commit-time failures when new report columns are added.
+    try:
+        project_root = Path(__file__).resolve().parents[1]
+        result = subprocess.run(
+            [sys.executable, "-m", "alembic", "upgrade", "head"],
+            cwd=str(project_root),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        if result.stdout:
+            logger.info(result.stdout.strip())
+        logger.info("Database migrations applied successfully")
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Failed to apply database migrations: {e.stderr or e.stdout or e}")
+        raise
     
     # Initialize database tables (for development only)
     # In production, use Alembic migrations
