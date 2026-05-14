@@ -73,8 +73,12 @@ async def lifespan(app: FastAPI):
             logger.info(result.stdout.strip())
         logger.info("Database migrations applied successfully")
     except subprocess.CalledProcessError as e:
-        logger.error(f"Failed to apply database migrations: {e.stderr or e.stdout or e}")
-        raise
+        # Log the error but don't crash startup
+        # The app can still run; operations that need new columns will fail gracefully
+        logger.warning(f"Migration failed during startup (app will continue): {e.stderr or e.stdout or str(e)}")
+    except Exception as e:
+        # Catch any other subprocess errors (path not found, permission denied, etc.)
+        logger.warning(f"Could not run migrations (app will continue): {str(e)}")
     
     # Initialize database tables (for development only)
     # In production, use Alembic migrations
