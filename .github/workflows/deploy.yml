@@ -53,21 +53,25 @@ jobs:
             echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Pull new image
-            docker pull ghcr.io/${{ env.IMAGE_NAME }}:latest
+            docker pull ghcr.io/tanishthorat/sitesage-backend:latest
             
-            # Stop old container
+            # Stop the old docker-compose container to free up port 8000 (Crucial!)
+            docker stop sitesage_backend || true
+            docker rm sitesage_backend || true
+            
+            # Stop any previous versions of this CI/CD container
             docker stop api-server || true
             docker rm api-server || true
             
-            # Run new container
+            # Run new container (Fixed Network and .env path)
             docker run -d \
               --name api-server \
               --restart always \
               -p 8000:8000 \
-              --network sitesage-net \
-              --env-file /home/ubuntu/sitesage/.env \
+              --network sitesage_default \
+              --env-file /home/ubuntu/sitesage/backend/.env \
               -v /home/ubuntu/sitesage/backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro \
-              ghcr.io/${{ env.IMAGE_NAME }}:latest
-            
-            # Cleanup old images (keep last 3)
-            docker images ghcr.io/${{ env.IMAGE_NAME }} --format "{{.ID}}" | tail -n +4 | xargs -r docker rmi -f || true
+              ghcr.io/tanishthorat/sitesage-backend:latest
+              
+            # Cleanup old images
+            docker system prune -af --filter "until=24h"
