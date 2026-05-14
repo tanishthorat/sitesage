@@ -8,7 +8,7 @@ to service layer functions.
 from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy import func, text
+from sqlalchemy import func, text, or_
 from typing import Optional
 
 from .. import models, schemas
@@ -287,8 +287,11 @@ async def get_unique_urls(
 
 def _normalize_url(url: str) -> str:
     """
-    Normalize URL by ensuring consistent trailing slash handling.
-    Tries to match the URL as-is first, then with/without trailing slash.
+    Normalize URL by removing trailing slash for consistent storage.
+    
+    Example:
+        https://example.com/ -> https://example.com
+        https://example.com -> https://example.com
     """
     return url.rstrip('/')
 
@@ -299,34 +302,27 @@ async def _get_reports_for_url(
     db: Session
 ) -> list[models.Report]:
     """
-    Helper function to fetch reports for a URL with flexible matching.
-    Handles trailing slash variations.
+    Helper function to fetch reports for a URL with flexible trailing slash handling.
+    
+    Handles trailing slash variations by querying for both normalized versions:
+    - https://example.com/path (normalized: no trailing slash)
+    - https://example.com/path/ (with trailing slash)
+    
+    This ensures the user gets results regardless of how they input the URL.
     """
-    # Try exact match first
+    normalized_url = _normalize_url(url)
+    url_with_slash = f"{normalized_url}/"
+    
+    # Query for either normalized URL or URL with trailing slash
     reports = db.query(models.Report).filter(
         models.Report.user_id == current_user.id,
-        models.Report.url == url
+        or_(
+            models.Report.url == normalized_url,
+            models.Report.url == url_with_slash
+        )
     ).order_by(
         models.Report.created_at.desc()
     ).all()
-    
-    # If no exact match, try with/without trailing slash
-    if not reports:
-        normalized_url = _normalize_url(url)
-        # Try normalized URL
-        reports = db.query(models.Report).filter(
-            models.Report.user_id == current_user.id,
-            models.Report.url == normalized_url
-        ).all()
-        
-        # If still not found, try with trailing slash added
-        if not reports:
-            reports = db.query(models.Report).filter(
-                models.Report.user_id == current_user.id,
-                models.Report.url == f"{normalized_url}/"
-            ).order_by(
-                models.Report.created_at.desc()
-            ).all()
     
     return reports
 

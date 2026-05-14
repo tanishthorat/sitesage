@@ -126,6 +126,23 @@ def _process_ai_suggestions(suggestions: list) -> list:
     return processed
 
 
+def _normalize_url(url: str) -> str:
+    """
+    Normalize URL by removing trailing slash for consistent database storage.
+    
+    This ensures all URLs are stored in a consistent format, avoiding the
+    trailing slash mismatch problem where example.com and example.com/ are
+    treated as different database entries.
+    
+    Args:
+        url: The URL to normalize
+        
+    Returns:
+        URL without trailing slash
+    """
+    return url.rstrip('/')
+
+
 def _create_report(
     url: str,
     user_id: Optional[int],
@@ -138,7 +155,7 @@ def _create_report(
     Create and persist SEO analysis report.
     
     Args:
-        url: Analyzed URL
+        url: Analyzed URL (will be normalized before saving)
         user_id: User ID (None for guests)
         crawl_data: Crawling results
         ai_result: AI analysis results
@@ -148,8 +165,11 @@ def _create_report(
     Returns:
         Created report instance
     """
+    # Normalize URL to prevent trailing slash mismatches
+    normalized_url = _normalize_url(url)
+    
     report = models.Report(
-        url=url,
+        url=normalized_url,
         user_id=user_id,  # NULL for guests
         title=crawl_data['title'],
         meta_description=crawl_data['meta_description'],
